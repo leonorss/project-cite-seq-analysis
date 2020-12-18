@@ -1,0 +1,33 @@
+---
+title: "Analyzing Levesque’s data"
+author: "Leonor Schubert"
+date: "14 12 2020"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+
+```{r libraries, message=FALSE}
+library('SingleCellExperiment')
+library('DropletUtils')
+library('scater')
+# scater, scran, uwot
+
+```
+
+```{r readData}
+local.path <- getwd()
+setwd(local.path)
+patient1_HS.path <- file.path("data", "patient1_HS")
+
+fname <- file.path(patient1_HS.path, "outs/raw_feature_bc_matrix")
+sce.patient1_HS <- read10xCounts(fname, col.names=TRUE)
+
+rownames(sce.patient1_HS) <- uniquifyFeatureNames(rowData(sce.patient1_HS)$ID, rowData(sce.patient1_HS)$Symbol)
+```
+
+
+
