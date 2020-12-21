@@ -45,11 +45,16 @@ counts(altExp(sce.patient1_HS)) <- as.matrix(counts(altExp(sce.patient1_HS)))
 # remove cells that have failed to capture/sequence antibodies, remove cells that have unusually low numbers antibodies (less than or equal to half of the total number of tags)
 df.ab.patient1_HS <- perCellQCMetrics(altExp(sce.patient1_HS))
 
+# exclude antibodies with zero counts across all cells
 number.nonzero.patient1_HS <- sum(!rowAlls(counts(altExp(sce.patient1_HS)), value=0L))
-ab.discard.patient1_HS <- df.ab.patient1_HS$detected <= number.nonzero.patient1_HS/2
-summary(ab.discard.patient1_HS)
+discard.ab.patient1_HS <- df.ab.patient1_HS$detected <= number.nonzero.patient1_HS/2
+summary(discard.ab.patient1_HS)
 
+# distribution of the number of detected antibodies across all cells, redline=threshold, below cells are discarded (looks like almost all?)
 hist(df.ab.patient1_HS$detected, col='grey', main="", xlab="Number of detected Antibody-tags") + abline(v=number.nonzero.patient1_HS/2, col="red", lty=2)
+
+## Should we really discard all these cells (732648), would only keep 4632?
+## I wouldn't think so, but in the pipeline in the bioconductor this is what would be done...
 ```
 
 ```{r qualityControl_RNA}
