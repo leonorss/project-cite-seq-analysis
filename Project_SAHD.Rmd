@@ -57,13 +57,34 @@ hist(df.ab.patient1_HS$detected, col='grey', main="", xlab="Number of detected A
 ## I wouldn't think so, but in the pipeline in the bioconductor this is what would be done...
 ```
 
-```{r qualityControl_RNA}
+```{r qualityControl_emptyDroplets}
 # using emptyDrops
-set.seed(11)t
+set.seed(11)
 
-e.out.patient1_HS <- emptyDrops(counts(sce.patient1_HS), niters = 100000)
+# use emptyDrops algorithm to predict which cells are probably empty
+e.out.patient1_HS <- emptyDrops(counts(sce.patient1_HS), niters = 10000, test.ambient=TRUE)
 
+# look at sum summary statistics (non-significant & limited field should be 0, otherwise ran emptyDrops again with higher niters)
 summary(e.out.patient1_HS$FDR <= 0.001)
 table(Sig=e.out.patient1_HS$FDR <= 0.001, Limited=e.out.patient1_HS$Limited)
+
+# should have an approx. uniform distribution, especially at the beginning (if high peaks there, decrease lower in emptyDrops)
+hist(e.out.patient1_HS$PValue[e.out.patient1_HS$Total <= limit & e.out.patient1_HS$Total > 0],
+    xlab="P-value", main="", col="grey80")
+
+# subset sce
+sce.patient1_HS <- sce.patient1_HS[, which(e.out.patient1_HS$FDR <= 0.001)]
 ```
 
+```{r qualityControl_deadCells}
+# discard dead cells by looking at where there's high percentage of mitochondrial RNA
+mito <- grep("^MT-", rowData(sce.patient1_HS)$Symbol)
+df.mito.patient1_HS <- perCellQCMetrics(sce.patient1_HS, subsets=list(Mito=mito))
+discard.mito.patient1_HS <- isOutlier(df.mito.patient1_HS$subsets_Mito_percent, type="higher")
+
+# looks like quite a lot of cells?
+summary(discard.mito.patient1_HS)
+
+plot(df.mito.patient1_HS$sum, df.mito.patient1_HS$subsets_MT_percent, log="x",
+    xlab="Total count", ylab='Mitochondrial %') + abline(h=attr(discard.mito.patient1_HS, "thresholds")["higher"], col="red")
+```
