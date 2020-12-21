@@ -14,20 +14,51 @@ knitr::opts_chunk$set(echo = TRUE)
 library('SingleCellExperiment')
 library('DropletUtils')
 library('scater')
+#library('scuttle')
 # scater, scran, uwot
 
 ```
 
 ```{r readData}
+# set local path
 local.path <- getwd()
 setwd(local.path)
 patient1_HS.path <- file.path("data", "patient1_HS")
 
+# read in unfiltered data
 fname <- file.path(patient1_HS.path, "outs/raw_feature_bc_matrix")
 sce.patient1_HS <- read10xCounts(fname, col.names=TRUE)
 
+# rename genes
 rownames(sce.patient1_HS) <- uniquifyFeatureNames(rowData(sce.patient1_HS)$ID, rowData(sce.patient1_HS)$Symbol)
+
+# put antibody data in seperate summarizedExperiment inside our singleCellExperiment
+sce.patient1_HS <- splitAltExps(sce.patient1_HS, rowData(sce.patient1_HS)$Type)
+# altExp(sce.patient1_HS)
+
+# from sparse to normal matrix for downstream analysis
+counts(altExp(sce.patient1_HS)) <- as.matrix(counts(altExp(sce.patient1_HS)))
+
 ```
 
+```{r qualityControl_Antibodies}
+# remove cells that have failed to capture/sequence antibodies, remove cells that have unusually low numbers antibodies (less than or equal to half of the total number of tags)
+df.ab.patient1_HS <- perCellQCMetrics(altExp(sce.patient1_HS))
 
+number.nonzero.patient1_HS <- sum(!rowAlls(counts(altExp(sce.patient1_HS)), value=0L))
+ab.discard.patient1_HS <- df.ab.patient1_HS$detected <= number.nonzero.patient1_HS/2
+summary(ab.discard.patient1_HS)
+
+hist(df.ab.patient1_HS$detected, col='grey', main="", xlab="Number of detected Antibody-tags") + abline(v=number.nonzero.patient1_HS/2, col="red", lty=2)
+```
+
+```{r qualityControl_RNA}
+# using emptyDrops
+set.seed(11)t
+
+e.out.patient1_HS <- emptyDrops(counts(sce.patient1_HS), niters = 100000)
+
+summary(e.out.patient1_HS$FDR <= 0.001)
+table(Sig=e.out.patient1_HS$FDR <= 0.001, Limited=e.out.patient1_HS$Limited)
+```
 
