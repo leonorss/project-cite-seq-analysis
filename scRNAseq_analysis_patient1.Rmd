@@ -1,0 +1,8 @@
+---
+title: "scRNAseq analysis of Levesque’s data"
+author: "Jonathan Haab"
+date: "22 12 2020"
+output: html_document
+---
+# from pipeline example described by Pierre-Luc Germain, course sta426 UZH
+
