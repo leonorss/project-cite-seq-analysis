@@ -6,3 +6,91 @@ output: html_document
 ---
 # from pipeline example described by Pierre-Luc Germain, course sta426 UZH
 
+# Loading necessary libraries
+
+```{r}
+suppressPackageStartupMessages({
+  library(SingleCellExperiment)
+  library(scran)
+  library(scater)
+  library(batchelor)
+  library(scDblFinder)
+  library(sctransform)
+  library(muscat)
+  library(SEtools)
+  library(cowplot)
+  library(BiocParallel)
+  library(ComplexHeatmap)
+  
+  library(DropletUtils) # for read10xCounts
+  library(Matrix) # to handle sparse matrix
+})
+```
+
+# Preprocessing & Clustering
+
+## Loading the data
+
+```{r}
+## data can be downloaded from : http://imlspenticton.uzh.ch/dump/files_for_levesque.tar
+
+# set local path
+local.path <- getwd()
+setwd(local.path)
+patient1_HS.path <- file.path("data", "patient1_HS")
+patient1_SCC.path <- file.path("data", "patient1_SCC")
+
+# read in filtered data
+fnameHS <- file.path(patient1_HS.path, "outs/filtered_feature_bc_matrix")
+fnameSCC <- file.path(patient1_SCC.path, "outs/filtered_feature_bc_matrix")
+
+# single cell experiment
+sce.patient1_HS <- read10xCounts(fnameHS, col.names=TRUE)
+sce.patient1_SCC <- read10xCounts(fnameSCC, col.names=TRUE)
+
+sce.patient1_HS
+sce.patient1_SCC
+```
+
+```{r}
+# only select the gene expression data, drop the antibody capture
+#sce.patient1_HS <- sce.patient1_HS[rowData(sce.patient1_HS)$Type == "Gene Expression"]
+#sce.patient1_SCC <- sce.patient1_SCC[rowData(sce.patient1_SCC)$Type == "Gene Expression"]
+
+#sce.patient1_HS
+#sce.patient1_SCC
+
+```
+
+
+## Normalization & reduction
+```{r}
+# filtering : already done
+
+# variance-stabilizing transformation
+vstHS <- suppressWarnings(sctransform::vst(counts(sce.patient1_HS)))
+
+# "ugly" fix since the other line doesn't work
+#sce.patient1_HS <- logNormCounts(sce.patient1_HS)
+#logcounts(sce.patient1_HS) <- vstHS$y 
+#assay(sce.patient1_HS, withDimnames=FALSE) <- vstHS$y
+# this line doesn't work but should from : http://bioconductor.org/books/release/OSCA/data-infrastructure.html
+assay(sce.patient1_HS, "logcounts") <- vstHS$y 
+
+assays(sce.patient1_HS) # check that logcounts assay was created
+
+# Advice : take the 3000 most variable genes
+ 
+# run PCA
+#sce <- runPCA(sce, subset_row=rowData(sce.patient1_HS)$Type!='Antibody Capture')
+```
+
+## Clustering
+```{r}
+gHS <- buildKNNGraph(sce.patient1_HS, BNPARAM=AnnoyParam(), use.dimred="PCA", k=30)
+sce.patient1_HS$cluster <- as.factor(cluster_louvain(gHS)$membership)
+
+
+plot_grid( plotTSNE(sce.patient1_HS, colour_by="cluster", text_by="cluster"),
+           plotUMAP(sce.patient1_HS, colour_by="cluster", text_by="cluster") )
+```
