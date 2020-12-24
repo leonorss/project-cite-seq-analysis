@@ -57,32 +57,60 @@ sce.patient1_SCC
 #sce.patient1_HS <- sce.patient1_HS[rowData(sce.patient1_HS)$Type == "Gene Expression"]
 #sce.patient1_SCC <- sce.patient1_SCC[rowData(sce.patient1_SCC)$Type == "Gene Expression"]
 
-#sce.patient1_HS
-#sce.patient1_SCC
+# Split the data, store ADT in alternative experiment
+sce.patient1_HS <- splitAltExps(sce.patient1_HS, rowData(sce.patient1_HS)$Type)
+sce.patient1_SCC <- splitAltExps(sce.patient1_SCC, rowData(sce.patient1_SCC)$Type)
+
+# Coerce sparse matrix for ADT into a dense matrix
+counts(altExp(sce.patient1_HS)) <- as.matrix(counts(altExp(sce.patient1_HS)))
+counts(altExp(sce.patient1_SCC)) <- as.matrix(counts(altExp(sce.patient1_SCC)))
 
 ```
 
 
 ## Normalization & reduction
+Note : The presence of composition biases already implies strong differences in expression profiles, so changing the normalization strategy is unlikely to affect the outcome of a clustering procedure.
+
+Library size normalization : assumes that there is no “imbalance” in the differentially expressed (DE) genes between any pair of cells. However, balanced DE is not generally present in scRNA-seq applications, which means that library size normalization may not yield accurate normalized expression values for downstream analyses. In practice, normalization accuracy is not a major consideration for exploratory scRNA-seq data analyses. Composition biases do not usually affect the separation of clusters, only the magnitude - and to a lesser extent, direction - of the log-fold changes between clusters or cell types. As such, library size normalization is usually sufficient in many applications where the aim is to identify clusters and the top markers that define each cluster.
+
+```{r library_size_normalization}
+lib.sf.HS <- librarySizeFactors(sce.patient1_HS)
+summary(lib.sf.HS)
+hist(log10(lib.sf.HS), xlab="Log10[Size factor]", col='grey80')
+```
+
+
+```{r scaling_logtransfo}
+set.seed(100)
+clust.patient1_HS <- quickCluster(sce.patient1_HS) 
+sce.patient1_HS <- computeSumFactors(sce.patient1_HS, cluster=clust.patient1_HS, min.mean=0.1)
+# downsample to correct the effect of library size
+sce.patient1_HS <- logNormCounts(sce.patient1_HS) 
+#sce.patient1_HS <- logNormCounts(sce.patient1_HS, downsample=TRUE) 
+assayNames(sce.patient1_HS)
+
+sce.patient1_HS <- runPCA(sce.patient1_HS)
+plotPCA(sce.patient1_HS)
+```
+=> log transfo doesn't give satisfying results, we'll try variance-stabilizing transformation
+
+```{r vst}
+vst.patient1_HS <- suppressWarnings(sctransform::vst(counts(sce.patient1_HS)))
+logcounts(sce.patient1_HS) <- as.matrix(logcounts(sce.patient1_HS))
+nrow(vst.patient1_HS$y)
+ncol(vst.patient1_HS$y)
+nrow(counts(sce.patient1_HS))
+logcounts(sce.patient1_HS, withDimnames=FALSE) <- vst.patient1_HS$y # ERROR
+#assay(sce.patient1_HS, "vst") <- vst.patient1_HS$y
+```
+
+# ignore what's below
+
 ```{r}
-# filtering : already done
-
-# variance-stabilizing transformation
-vstHS <- suppressWarnings(sctransform::vst(counts(sce.patient1_HS)))
-
-# "ugly" fix since the other line doesn't work
-#sce.patient1_HS <- logNormCounts(sce.patient1_HS)
-#logcounts(sce.patient1_HS) <- vstHS$y 
-#assay(sce.patient1_HS, withDimnames=FALSE) <- vstHS$y
-# this line doesn't work but should from : http://bioconductor.org/books/release/OSCA/data-infrastructure.html
-assay(sce.patient1_HS, "logcounts") <- vstHS$y 
-
-assays(sce.patient1_HS) # check that logcounts assay was created
-
-# Advice : take the 3000 most variable genes
- 
-# run PCA
-#sce <- runPCA(sce, subset_row=rowData(sce.patient1_HS)$Type!='Antibody Capture')
+var(logcounts(sce.patient1_HS))
+# get highly-variable genes
+hvgHS <- row.names(sce)[order(vst$gene_attr$residual_variance, decreasing=TRUE)[1:2000]]
+hvgSCC <-
 ```
 
 ## Clustering
