@@ -31,7 +31,7 @@ suppressPackageStartupMessages({
 
 ## Loading the data
 
-```{r}
+```{r data-loading}
 ## data can be downloaded from : http://imlspenticton.uzh.ch/dump/files_for_levesque.tar
 
 # set local path
@@ -52,7 +52,7 @@ sce.patient1_HS
 sce.patient1_SCC
 ```
 
-```{r}
+```{r split-data}
 # only select the gene expression data, drop the antibody capture
 #sce.patient1_HS <- sce.patient1_HS[rowData(sce.patient1_HS)$Type == "Gene Expression"]
 #sce.patient1_SCC <- sce.patient1_SCC[rowData(sce.patient1_SCC)$Type == "Gene Expression"]
@@ -74,13 +74,19 @@ Note : The presence of composition biases already implies strong differences in 
 Library size normalization : assumes that there is no “imbalance” in the differentially expressed (DE) genes between any pair of cells. However, balanced DE is not generally present in scRNA-seq applications, which means that library size normalization may not yield accurate normalized expression values for downstream analyses. In practice, normalization accuracy is not a major consideration for exploratory scRNA-seq data analyses. Composition biases do not usually affect the separation of clusters, only the magnitude - and to a lesser extent, direction - of the log-fold changes between clusters or cell types. As such, library size normalization is usually sufficient in many applications where the aim is to identify clusters and the top markers that define each cluster.
 
 ```{r library_size_normalization}
+#exlude genes that appeared in less than 5 cells
+#sce.patient1_HS <- sce[rowData(sce.patient1_HS)$detected >= 5,]
+
+keep_feature <- rowSums(counts(sce.patient1_HS) > 0) > 4
+sce.patient1_HS <- sce.patient1_HS[keep_feature,]
+
 lib.sf.HS <- librarySizeFactors(sce.patient1_HS)
 summary(lib.sf.HS)
 hist(log10(lib.sf.HS), xlab="Log10[Size factor]", col='grey80')
 ```
 
 
-```{r scaling_logtransfo}
+```{r scaling_logtransform}
 set.seed(100)
 clust.patient1_HS <- quickCluster(sce.patient1_HS) 
 sce.patient1_HS <- computeSumFactors(sce.patient1_HS, cluster=clust.patient1_HS, min.mean=0.1)
