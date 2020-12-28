@@ -24,6 +24,8 @@ suppressPackageStartupMessages({
   
   library(DropletUtils) # for read10xCounts
   library(Matrix) # to handle sparse matrix
+  library(BiocNeighbors) # for kNN graph
+  library(igraph) # for cluster_louvain
 })
 ```
 
@@ -73,7 +75,7 @@ Note : The presence of composition biases already implies strong differences in 
 
 Library size normalization : assumes that there is no “imbalance” in the differentially expressed (DE) genes between any pair of cells. However, balanced DE is not generally present in scRNA-seq applications, which means that library size normalization may not yield accurate normalized expression values for downstream analyses. In practice, normalization accuracy is not a major consideration for exploratory scRNA-seq data analyses. Composition biases do not usually affect the separation of clusters, only the magnitude - and to a lesser extent, direction - of the log-fold changes between clusters or cell types. As such, library size normalization is usually sufficient in many applications where the aim is to identify clusters and the top markers that define each cluster.
 
-```{r library_size_normalization}
+```{r library_size_normalization, eval=False}
 #exlude genes that appeared in less than 5 cells
 #sce.patient1_HS <- sce[rowData(sce.patient1_HS)$detected >= 5,]
 
@@ -86,7 +88,7 @@ hist(log10(lib.sf.HS), xlab="Log10[Size factor]", col='grey80')
 ```
 
 
-```{r scaling_logtransform}
+```{r scaling_logtransform, eval=False}
 set.seed(100)
 clust.patient1_HS <- quickCluster(sce.patient1_HS) 
 sce.patient1_HS <- computeSumFactors(sce.patient1_HS, cluster=clust.patient1_HS, min.mean=0.1)
@@ -101,30 +103,120 @@ plotPCA(sce.patient1_HS)
 => log transfo doesn't give satisfying results, we'll try variance-stabilizing transformation
 
 ```{r vst}
+# get rid of seldom detected genes
+#keep_feature <- rowSums(counts(sce.patient1_HS) > 0) > 4
+#sce.patient1_HS <- sce.patient1_HS[keep_feature,]
+
+sce.patient1_HS <- sce.patient1_HS[(rowSums(counts(sce.patient1_HS) > 0) > 4),]
+sce.patient1_SCC <- sce.patient1_SCC[(rowSums(counts(sce.patient1_SCC) > 0) > 4),]
+
 vst.patient1_HS <- suppressWarnings(sctransform::vst(counts(sce.patient1_HS)))
-logcounts(sce.patient1_HS) <- as.matrix(logcounts(sce.patient1_HS))
-nrow(vst.patient1_HS$y)
-ncol(vst.patient1_HS$y)
-nrow(counts(sce.patient1_HS))
-logcounts(sce.patient1_HS, withDimnames=FALSE) <- vst.patient1_HS$y # ERROR
+vst.patient1_SCC <- suppressWarnings(sctransform::vst(counts(sce.patient1_SCC)))
+
+#logcounts(sce.patient1_HS) <- as.matrix(logcounts(sce.patient1_HS))
+#nrow(vst.patient1_HS$y)
+#ncol(vst.patient1_HS$y)
+#nrow(counts(sce.patient1_HS))
+
+logcounts(sce.patient1_HS, withDimnames=FALSE) <- vst.patient1_HS$y
+logcounts(sce.patient1_SCC, withDimnames=FALSE) <- vst.patient1_SCC$y
+
 #assay(sce.patient1_HS, "vst") <- vst.patient1_HS$y
+assays(sce.patient1_HS)
+assays(sce.patient1_SCC)
+
+# get highly-variable genes
+hvg.patient1_HS <- row.names(sce.patient1_HS)[order(vst.patient1_HS$gene_attr$residual_variance, decreasing=TRUE)[1:2000]]
+hvg.patient1_SCC <- row.names(sce.patient1_SCC)[order(vst.patient1_SCC$gene_attr$residual_variance, decreasing=TRUE)[1:2000]]
 ```
 
-# ignore what's below
+```{r pca}
+# run PCA
+sce.patient1_HS <- runPCA(sce.patient1_HS, subset_row=hvg.patient1_HS)
+sce.patient1_SCC <- runPCA(sce.patient1_SCC, subset_row=hvg.patient1_SCC)
 
-```{r}
-var(logcounts(sce.patient1_HS))
-# get highly-variable genes
-hvgHS <- row.names(sce)[order(vst$gene_attr$residual_variance, decreasing=TRUE)[1:2000]]
-hvgSCC <-
+# check the variance explained by the PCs:
+pc.var.patient1_HS <- attr(reducedDim(sce.patient1_HS),"percentVar")
+plot(pc.var.patient1_HS, xlab="PCs", ylab="% variance explained")
+
+pc.var.patient1_SCC <- attr(reducedDim(sce.patient1_SCC),"percentVar")
+plot(pc.var.patient1_SCC, xlab="PCs", ylab="% variance explained")
+
+# restrict to the first 20 components:
+reducedDim(sce.patient1_HS) <- reducedDim(sce.patient1_HS)[,1:20]
+reducedDim(sce.patient1_SCC) <- reducedDim(sce.patient1_SCC)[,1:20]
+
+# run and plot 2d projections based on the PCA:
+sce.patient1_HS <- runTSNE(sce.patient1_HS, dimred="PCA")
+sce.patient1_HS <- runUMAP(sce.patient1_HS, dimred="PCA")
+
+sce.patient1_SCC <- runTSNE(sce.patient1_SCC, dimred="PCA")
+sce.patient1_SCC <- runUMAP(sce.patient1_SCC, dimred="PCA")
+
 ```
 
 ## Clustering
-```{r}
-gHS <- buildKNNGraph(sce.patient1_HS, BNPARAM=AnnoyParam(), use.dimred="PCA", k=30)
-sce.patient1_HS$cluster <- as.factor(cluster_louvain(gHS)$membership)
 
+```{r clustering}
+g.patient1_HS <- buildKNNGraph(sce.patient1_HS, BNPARAM=AnnoyParam(), use.dimred="PCA", k=30)
+sce.patient1_HS$cluster <- as.factor(cluster_louvain(g.patient1_HS)$membership)
 
 plot_grid( plotTSNE(sce.patient1_HS, colour_by="cluster", text_by="cluster"),
            plotUMAP(sce.patient1_HS, colour_by="cluster", text_by="cluster") )
+
+```
+
+# Cluster annotation
+
+## Known markers
+
+```{r}
+rownames(sce.patient1_HS)
+# access gene name
+rowData(sce.patient1_HS)$ID
+# acces marker name
+rowData(sce.patient1_HS)$Symbol
+head(sce.patient1_HS)
+
+genes <- list(
+  # classification: https://www.sciencedirect.com/science/article/pii/S0923181120301985?via%3Dihub#bib0050
+  # KERATINOCYTE
+  keratinocyte = c("DSC3","DSP","LGALS7"),
+  keratinocyte_basal = c("KRT5","KRT14","COL17A1"),
+  keratinocyte_suprabasal = c("KRT1","KRT10"),
+  keratinocyte_differentiated = c("LOR", "SPINK5"),
+  keratinocyte_ORS = c("KRT6B"),
+  keratinocyte_channel = c("GJB2","GJB6","ATP1B1"),
+  keratinocyte_sebaceous_gland = c("MGST1","FASN"),
+  keratinocyte_sweat_gland  = c("DCD","AQP5"),
+  # FIBROBLAST
+  fibroblast  = c("DCDN","LUM","MMP2"),
+  # fibroblast subclassification  from: https://www.nature.com/articles/s42003-020-0922-4#
+  fibroblast_secretory_reticular = c("WISP2","SLPI","CTHRC1","MFAP5","TSPAN8"),
+  fibroblast_proinflammatory = c("CCL19","APOE","CXCL2","CXCL3","EFEMP1"),
+  fibroblast_secretory_papillary = c("APCDD1","ID1","WIF1","COL18A1","PTGDS"),
+  fibroblast_mesenchymal = c("ASPN","POSTN","GPC3","TNN","SFRP1"),
+  # PERICYTE & vSMC
+  pericytevSMC  = c("ACTA2","TAGLN"), #vSMC : vascular smooth muscel cell
+  pericytevSMC_pericyte  = c("RGS5"),
+  pericytevSMC_vSMC  = c("MYL9","TPM2","RERGL"),
+  # ENDOTHELIAL CELL
+  endothelial  = c("PECAM1","SELE","CLDN5","VWF"),
+  endothelial_lymphatic  = c("PROX1","LYVE1"),
+  # MYELOID CELL
+  myeloid  = c("HLA-DRA","FCER1G","TYROBP","AIF1"),
+  myeloid_dendritic  = c("CD1C"),
+  myeloid_langerhans  = c("CD207"),
+  myeloid_macrophage = c("CD68","RNASE1","SEPP1","ITGAX"),
+  # LYMPHOCYTE
+  lymphocyte  = c("CD3D","CD3E","CD52","IL7R"),
+  # MELANOCYTE
+  melanocyte  = c("DCT","MLANA","PMEL","TYP1"),
+  # SCHWANN CELL
+  schwann  = c("CDH19","NGFR"),
+  # MITOTIC CELL
+  mitotic  = c("UBE2C","PCNA")
+)
+# since the row.names of the object have also the ensembl id, we find the matching row names for each gene:
+#km <- lapply(genes, FUN=function(g.patient1_HS) grep(paste0(g.patient1_HS, "$", collapse="|"), rownames(sce2), value=TRUE))
 ```
