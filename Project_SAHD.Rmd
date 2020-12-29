@@ -14,6 +14,7 @@ knitr::opts_chunk$set(echo = TRUE)
 library('SingleCellExperiment')
 library('DropletUtils')
 library('scater')
+library('scDblFinder')
 #library('scuttle')
 # scater, scran, uwot
 
@@ -91,7 +92,41 @@ discard.mito.patient1_HS <- isOutlier(df.mito.patient1_HS$subsets_Mito_percent, 
 # looks like quite a lot of cells?
 summary(discard.mito.patient1_HS)
 
-plot(df.mito.patient1_HS$sum, df.mito.patient1_HS$subsets_MT_percent, log="x",
+# plot cells which are dismissed bc. of high mitochondrial expression, don't want to dismiss any in the upper right corner, which are high quality cells
+plot(df.mito.patient1_HS$sum, df.mito.patient1_HS$subsets_Mito_percent, log="x",
     xlab="Total count", ylab='Mitochondrial %') 
 abline(h=attr(discard.mito.patient1_HS, "thresholds")["higher"], col="red")
+```
+
+```{r qualityControl_doublets}
+# compute score for each each cell reperesenting how likely it is a doublet
+sce.patient1_HS <- scDblFinder(sce.patient1_HS)
+table(sce.patient1_HS$scDblFinder.class)
+
+# removing doublets
+sce.patient1_HS <- sce.patient1_HS[, sce.patient1_HS$scDblFinder.class!="doublet"]
+```
+
+
+```{r qualityControl_outliers}
+# compute outliers bc. of low library sizes and detection rates
+qc.lib2.patient1_HS <- isOutlier(df.mito.patient1_HS$sum, log=TRUE, type="lower")
+qc.nexprs2.patient1_HS <- isOutlier(df.mito.patient1_HS$detected, log=TRUE, type="lower")
+
+# discard all low quality cells (not including antibody quality assesment since otherwise almost all cells would be discarded)
+discard.patient1_HS <- qc.lib2.patient1_HS | qc.nexprs2.patient1_HS | discard.mito.patient1_HS
+
+# overvies of discarded cells
+DataFrame(LibSize=sum(qc.lib2.patient1_HS), NExprs=sum(qc.nexprs2.patient1_HS), MitoProp=sum(discard.mito.patient1_HS), Total=sum(discard.patient1_HS))
+
+# plotting of the above metrics, should have almost no tail, bc. these are the outliers we want to get rid of
+qc.patient1_HS <- as.data.frame((df.mito.patient1_HS))
+ggplot(qc.patient1_HS, aes(subsets_Mito_percent)) + geom_histogram() 
+ggplot(qc.patient1_HS, aes(log10(sum))) + geom_histogram() 
+ggplot(qc.patient1_HS, aes(log10(sum), log10(detected))) + geom_point() + geom_density2d()
+
+```
+
+```{r discardLowQualityCells}
+sce.patient1_HS <- sce.patient1_HS[, !discard.patient1_HS]
 ```
