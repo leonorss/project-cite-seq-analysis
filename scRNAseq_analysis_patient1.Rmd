@@ -254,9 +254,9 @@ cl2.patient1_HS <- mat.patient1_HS[,1][apply(mat.patient1_HS[,-1], 2, FUN=which.
 sce.patient1_HS$cluster2 <- cl2.patient1_HS[sce.patient1_HS$cluster]
 
 # we aggregate again to pseudo-bulk using the new clusters
-pb <- aggregateData(sce, "logcounts", by=c("cluster2"), fun="mean")
+pb.patient1_HS <- aggregateData(sce.patient1_HS, "logcounts", by=c("cluster2"), fun="mean")
 # we plot again the expression of the markers as a sanity check
-h1 <- pheatmap(assay(pb)[unlist(km),], annotation_row=data.frame(row.names=unlist(km), type=rep(names(km), lengths(km))), split=rep(names(km), lengths(km)), cluster_rows=FALSE, scale="row")
+h1 <- pheatmap(assay(pb.patient1_HS)[unlist(km.patient1_HS),], annotation_row=data.frame(row.names=unlist(km.patient1_HS), type=rep(names(km.patient1_HS), lengths(km.patient1_HS))), split=rep(names(km.patient1_HS), lengths(km.patient1_HS)), cluster_rows=FALSE, scale="row")
 
-plotUMAP(sce, colour_by="cluster2", text_by="cluster2")
+plotUMAP(sce.patient1_HS, colour_by="cluster2", text_by="cluster2")
 ```
