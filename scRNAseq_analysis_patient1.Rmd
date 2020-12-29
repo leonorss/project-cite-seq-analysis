@@ -171,12 +171,14 @@ plot_grid( plotTSNE(sce.patient1_HS, colour_by="cluster", text_by="cluster"),
 ## Known markers
 
 ```{r}
-rownames(sce.patient1_HS)
-# access gene name
-rowData(sce.patient1_HS)$ID
-# acces marker name
-rowData(sce.patient1_HS)$Symbol
-head(sce.patient1_HS)
+#head(sce.patient1_HS)
+# access gene name, 21242 elements
+#rowData(sce.patient1_HS)$ID
+#rownames(sce.patient1_HS)
+# acces marker name, 21242 elements
+#rowData(sce.patient1_HS)$Symbol
+
+
 
 genes <- list(
   # classification: https://www.sciencedirect.com/science/article/pii/S0923181120301985?via%3Dihub#bib0050
@@ -218,5 +220,43 @@ genes <- list(
   mitotic  = c("UBE2C","PCNA")
 )
 # since the row.names of the object have also the ensembl id, we find the matching row names for each gene:
-#km <- lapply(genes, FUN=function(g.patient1_HS) grep(paste0(g.patient1_HS, "$", collapse="|"), rownames(sce2), value=TRUE))
+rownames(sce.patient1_HS) <- paste(rownames(sce.patient1_HS), rowData(sce.patient1_HS)$Symbol, sep = ".")
+#rownames(sce.patient1_HS)
+km.patient1_HS <- lapply(genes, FUN=function(g.patient1_HS) grep(paste0(g.patient1_HS, "$", collapse="|"), rownames(sce.patient1_HS), value=TRUE))
+```
+
+## Pseudo-bulk aggregation
+
+```{r, eval=FALSE}
+# mean logcounts by cluster:
+pb.patient1_HS <- aggregateData(sce.patient1_HS, "logcounts", by=c("cluster"), fun="mean")
+# build a heatmap of the mean logcounts of the known markers:
+h1 <- pheatmap(assay(pb.patient1_HS)[unlist(km.patient1_HS),], annotation_row=data.frame(row.names=unlist(km.patient1_HS), type=rep(names(km.patient1_HS), lengths(km.patient1_HS))), split=rep(names(km.patient1_HS), lengths(km.patient1_HS)), cluster_rows=FALSE, scale="row")
+h1
+# heatmap for the de-novo markers:
+#h2 <- pheatmap(assay(pb.patient1_HS)[markers,], scale="row")
+#h2
+```
+
+```{r}
+# mean logcounts by cluster:
+pb.patient1_HS <- aggregateData(sce.patient1_HS, "logcounts", by=c("cluster"), fun="mean")
+
+# we will assign clusters to the cell type whose markers are the most expressed
+
+# we extract the pseudo-bulk counts of the markers for each cluster
+mat.patient1_HS <- assay(pb.patient1_HS)[unlist(km.patient1_HS),]
+# we aggregate across markers of the same type
+mat.patient1_HS <- aggregate(t(scale(t(mat.patient1_HS))), by=list(type=rep(names(km.patient1_HS), lengths(km.patient1_HS))), FUN=sum)
+# for each column (cluster), we select the row (cell type) which has the maximum aggregated value
+cl2.patient1_HS <- mat.patient1_HS[,1][apply(mat.patient1_HS[,-1], 2, FUN=which.max)]
+# we convert the cells' cluster labels to cell type labels:
+sce.patient1_HS$cluster2 <- cl2.patient1_HS[sce.patient1_HS$cluster]
+
+# we aggregate again to pseudo-bulk using the new clusters
+pb <- aggregateData(sce, "logcounts", by=c("cluster2"), fun="mean")
+# we plot again the expression of the markers as a sanity check
+h1 <- pheatmap(assay(pb)[unlist(km),], annotation_row=data.frame(row.names=unlist(km), type=rep(names(km), lengths(km))), split=rep(names(km), lengths(km)), cluster_rows=FALSE, scale="row")
+
+plotUMAP(sce, colour_by="cluster2", text_by="cluster2")
 ```
