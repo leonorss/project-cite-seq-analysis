@@ -325,149 +325,295 @@ h.patient1_HS
 #h2
 ```
 
-```{r}
-# mean logcounts by cluster:
-pb.patient1_HS <- aggregateData(sce.patient1_HS, "logcounts", by=c("cluster"), fun="mean")
-#pb.patient1_SCC <- aggregateData(sce.patient1_SCC, "logcounts", by=c("cluster"), fun="mean")
+```{r heatmaps}
 
-# we will assign clusters to the cell type whose markers are the most expressed
+pbs <- list()
+mats <- list()
+cl2s <- list()
+for (i in seq_along(sces))
+{
+  # mean logcounts by cluster:
+  pbs[[i]] <- aggregateData(sces[[i]], "logcounts", by=c("cluster"), fun="mean")
+  #pb.patient1_SCC <- aggregateData(sce.patient1_SCC, "logcounts", by=c("cluster"), fun="mean")
+  
+  # we will assign clusters to the cell type whose markers are the most expressed
+  
+  # we extract the pseudo-bulk counts of the markers for each cluster
+  mats[[i]] <- assay(pbs[[i]])[unlist(km.patient1_HS),]
+  #mat.patient1_SCC <- assay(pb.patient1_SCC)[unlist(km.patient1_SCC),]
+  
+  # we aggregate across markers of the same type
+  mats[[i]] <- aggregate(t(scale(t(mats[[i]]))), by=list(type=rep(names(km.patient1_HS), lengths(km.patient1_HS))), FUN=sum)
+  #mat.patient1_SCC <- aggregate(t(scale(t(mat.patient1_SCC))), by=list(type=rep(names(km.patient1_SCC), lengths(km.patient1_SCC))), FUN=sum)
+  
+  # for each column (cluster), we select the row (cell type) which has the maximum aggregated value
+  cl2.patient1_HS <- mats[[i]][,1][apply(mats[[i]][,-1], 2, FUN=which.max)]
+  # we convert the cells' cluster labels to cell type labels:
+  sces[[i]]$cluster2 <- cl2.patient1_HS[sces[[i]]$cluster]
+  
+  # we aggregate again to pseudo-bulk using the new clusters
+  pbs[[i]] <- aggregateData(sces[[i]], "logcounts", by=c("cluster2"), fun="mean")
+  # we plot again the expression of the markers as a sanity check
+  h1 <- pheatmap(assay(pbs[[i]])[unlist(km.patient1_HS),], annotation_row=data.frame(row.names=unlist(km.patient1_HS), type=rep(names(km.patient1_HS), lengths(km.patient1_HS))), split=rep(names(km.patient1_HS), lengths(km.patient1_HS)), cluster_rows=FALSE, scale="row", main=sample_names[[i]])
+  print(h1)
+  p <- plotUMAP(sces[[i]], colour_by="cluster2", text_by="cluster2", point_size=1) + ggtitle(sample_names[[i]])
+  plot(p)
+  #plotUMAP(sces[[i]], colour_by="cluster2", point_size=1)
+}
 
-# we extract the pseudo-bulk counts of the markers for each cluster
-mat.patient1_HS <- assay(pb.patient1_HS)[unlist(km.patient1_HS),]
-#mat.patient1_SCC <- assay(pb.patient1_SCC)[unlist(km.patient1_SCC),]
-
-# we aggregate across markers of the same type
-mat.patient1_HS <- aggregate(t(scale(t(mat.patient1_HS))), by=list(type=rep(names(km.patient1_HS), lengths(km.patient1_HS))), FUN=sum)
-#mat.patient1_SCC <- aggregate(t(scale(t(mat.patient1_SCC))), by=list(type=rep(names(km.patient1_SCC), lengths(km.patient1_SCC))), FUN=sum)
-
-# for each column (cluster), we select the row (cell type) which has the maximum aggregated value
-cl2.patient1_HS <- mat.patient1_HS[,1][apply(mat.patient1_HS[,-1], 2, FUN=which.max)]
-# we convert the cells' cluster labels to cell type labels:
-sce.patient1_HS$cluster2 <- cl2.patient1_HS[sce.patient1_HS$cluster]
-
-# we aggregate again to pseudo-bulk using the new clusters
-pb.patient1_HS <- aggregateData(sce.patient1_HS, "logcounts", by=c("cluster2"), fun="mean")
-# we plot again the expression of the markers as a sanity check
-h1 <- pheatmap(assay(pb.patient1_HS)[unlist(km.patient1_HS),], annotation_row=data.frame(row.names=unlist(km.patient1_HS), type=rep(names(km.patient1_HS), lengths(km.patient1_HS))), split=rep(names(km.patient1_HS), lengths(km.patient1_HS)), cluster_rows=FALSE, scale="row")
-h1
-plotUMAP(sce.patient1_HS, colour_by="cluster2", text_by="cluster2", point_size=1)
-#plotUMAP(sce.patient1_HS, colour_by="cluster2", point_size=1)
+# # mean logcounts by cluster:
+# pb.patient1_HS <- aggregateData(sce.patient1_HS, "logcounts", by=c("cluster"), fun="mean")
+# #pb.patient1_SCC <- aggregateData(sce.patient1_SCC, "logcounts", by=c("cluster"), fun="mean")
+# 
+# # we will assign clusters to the cell type whose markers are the most expressed
+# 
+# # we extract the pseudo-bulk counts of the markers for each cluster
+# mat.patient1_HS <- assay(pb.patient1_HS)[unlist(km.patient1_HS),]
+# #mat.patient1_SCC <- assay(pb.patient1_SCC)[unlist(km.patient1_SCC),]
+# 
+# # we aggregate across markers of the same type
+# mat.patient1_HS <- aggregate(t(scale(t(mat.patient1_HS))), by=list(type=rep(names(km.patient1_HS), lengths(km.patient1_HS))), FUN=sum)
+# #mat.patient1_SCC <- aggregate(t(scale(t(mat.patient1_SCC))), by=list(type=rep(names(km.patient1_SCC), lengths(km.patient1_SCC))), FUN=sum)
+# 
+# # for each column (cluster), we select the row (cell type) which has the maximum aggregated value
+# cl2.patient1_HS <- mat.patient1_HS[,1][apply(mat.patient1_HS[,-1], 2, FUN=which.max)]
+# # we convert the cells' cluster labels to cell type labels:
+# sce.patient1_HS$cluster2 <- cl2.patient1_HS[sce.patient1_HS$cluster]
+# 
+# # we aggregate again to pseudo-bulk using the new clusters
+# pb.patient1_HS <- aggregateData(sce.patient1_HS, "logcounts", by=c("cluster2"), fun="mean")
+# # we plot again the expression of the markers as a sanity check
+# h1 <- pheatmap(assay(pb.patient1_HS)[unlist(km.patient1_HS),], annotation_row=data.frame(row.names=unlist(km.patient1_HS), type=rep(names(km.patient1_HS), lengths(km.patient1_HS))), split=rep(names(km.patient1_HS), lengths(km.patient1_HS)), cluster_rows=FALSE, scale="row")
+# h1
+# plotUMAP(sce.patient1_HS, colour_by="cluster2", text_by="cluster2", point_size=1)
+# #plotUMAP(sce.patient1_HS, colour_by="cluster2", point_size=1)
 
 ```
 
 # Sub population
-```{r}
-# select the cell labeled as keratinocytes in the previous step
-sce.patient1_HS.kera <- sce.patient1_HS[sce.patient1_HS$cluster2=="keratinocyte"]
-
-#---- run the pipeline again on that subdataset
-
-sce.patient1_HS.kera <- sce.patient1_HS.kera[(rowSums(counts(sce.patient1_HS.kera) > 0) > 4),]
-
-vst.patient1_HS.kera <- suppressWarnings(sctransform::vst(counts(sce.patient1_HS.kera)))
-
-logcounts(sce.patient1_HS.kera, withDimnames=FALSE) <- vst.patient1_HS.kera$y
-
-# get highly-variable genes
-hvg.patient1_HS.kera <- row.names(sce.patient1_HS.kera)[order(vst.patient1_HS.kera$gene_attr$residual_variance, decreasing=TRUE)[1:2000]]
-
-#---- pca
-
-sce.patient1_HS.kera <- runPCA(sce.patient1_HS.kera, subset_row=hvg.patient1_HS.kera)
-
-# check the variance explained by the PCs:
-pc.var.patient1_HS.kera <- attr(reducedDim(sce.patient1_HS.kera),"percentVar")
-plot(pc.var.patient1_HS.kera, xlab="PCs", ylab="% variance explained")
-
-# restrict to the first 20 components:
-reducedDim(sce.patient1_HS.kera) <- reducedDim(sce.patient1_HS.kera)[,1:10]
-
-# run and plot 2d projections based on the PCA:
-sce.patient1_HS.kera <- runTSNE(sce.patient1_HS.kera, dimred="PCA")
-sce.patient1_HS.kera <- runUMAP(sce.patient1_HS.kera, dimred="PCA")
-
-#--- clustering
-
-g.patient1_HS.kera <- buildKNNGraph(sce.patient1_HS.kera, BNPARAM=AnnoyParam(), use.dimred="PCA", k=30)
+```{r subpopulations}
+kera_sces <- list()
+kera_hgvs <- list()
+kera_vst <- list()
+kera.pc.var <- list()
+kera_graphs <- list()
+kera_pbs <- list()
+kera_kms <- list()
 
 genes.kera <- list(
-  # classification: https://www.sciencedirect.com/science/article/pii/S0923181120301985?via%3Dihub#bib0050
-  # KERATINOCYTE
-  #keratinocyte = c("DSC3","DSP","LGALS7"),
-  keratinocyte_basal = c("KRT5","KRT14","COL17A1"),
-  keratinocyte_suprabasal = c("KRT1","KRT10"),
-  keratinocyte_differentiated = c("LOR", "SPINK5"),
-  keratinocyte_ORS = c("KRT6B"),
-  keratinocyte_channel = c("GJB2","GJB6","ATP1B1"),
-  keratinocyte_sebaceous_gland = c("MGST1","FASN"),
-  keratinocyte_sweat_gland  = c("DCD","AQP5")
-  )
+    # classification: https://www.sciencedirect.com/science/article/pii/S0923181120301985?via%3Dihub#bib0050
+    # KERATINOCYTE
+    #keratinocyte = c("DSC3","DSP","LGALS7"),
+    keratinocyte_basal = c("KRT5","KRT14","COL17A1"),
+    keratinocyte_suprabasal = c("KRT1","KRT10"),
+    keratinocyte_differentiated = c("LOR", "SPINK5"),
+    keratinocyte_ORS = c("KRT6B"),
+    keratinocyte_channel = c("GJB2","GJB6","ATP1B1"),
+    keratinocyte_sebaceous_gland = c("MGST1","FASN"),
+    keratinocyte_sweat_gland  = c("DCD","AQP5")
+    )
 
-km.patient1_HS.kera <- lapply(genes.kera, FUN=function(g.patient1_HS.kera) grep(paste0(g.patient1_HS.kera, "$", collapse="|"), rownames(sce.patient1_HS.kera), value=TRUE))
-
-#---
-
-# mean logcounts by cluster:
-pb.patient1_HS.kera <- aggregateData(sce.patient1_HS.kera, "logcounts", by=c("cluster"), fun="mean")
-
-# we will assign clusters to the cell type whose markers are the most expressed
-# we extract the pseudo-bulk counts of the markers for each cluster
-mat.patient1_HS.kera <- assay(pb.patient1_HS.kera)[unlist(km.patient1_HS.kera),]
-
-# we aggregate across markers of the same type
-mat.patient1_HS.kera <- aggregate(t(scale(t(mat.patient1_HS.kera))), by=list(type=rep(names(km.patient1_HS.kera), lengths(km.patient1_HS.kera))), FUN=sum)
-
-# for each column (cluster), we select the row (cell type) which has the maximum aggregated value
-cl.patient1_HS.kera <- mat.patient1_HS.kera[,1][apply(mat.patient1_HS.kera[,-1], 2, FUN=which.max)]
-# we convert the cells' cluster labels to cell type labels:
-sce.patient1_HS.kera$cluster <- cl.patient1_HS.kera[sce.patient1_HS.kera$cluster]
-
-# we aggregate again to pseudo-bulk using the new clusters
-pb.patient1_HS.kera <- aggregateData(sce.patient1_HS.kera, "logcounts", by=c("cluster"), fun="mean")
-# we plot again the expression of the markers as a sanity check
-h1.kera <- pheatmap(assay(pb.patient1_HS.kera)[unlist(km.patient1_HS.kera),], annotation_row=data.frame(row.names=unlist(km.patient1_HS.kera), type=rep(names(km.patient1_HS.kera), lengths(km.patient1_HS.kera))), split=rep(names(km.patient1_HS.kera), lengths(km.patient1_HS.kera)), cluster_rows=FALSE, scale="row")
-h1
-plotUMAP(sce.patient1_HS.kera, colour_by="cluster", text_by="cluster", point_size=1)
-#plot_grid( plotTSNE(sce.patient1_HS.kera, colour_by="cluster", text_by="cluster"), plotUMAP(sce.patient1_HS.kera, colour_by="cluster", text_by="cluster") )
-
-
-#--- check if the markers we're defining the keratinocyte subpopulations are present in the cells
-# selecter by the keratinocyte cluster
-markers_kera_cluster <- rowData(sce.patient1_HS.kera)$Symbol
-markers_kera <- c("DSC3","DSP","LGALS7","KRT5","KRT14","COL17A1","KRT1","KRT10","LOR", "SPINK5","KRT6B","GJB2","GJB6","ATP1B1","MGST1","FASN","DCD","AQP5")
-
-for (i in 1:length(markers_kera)) {
-  idx <- grep(markers_kera_cluster[i], markers_kera, fixed=TRUE)
-
-  found <- c()
-  not_found <- c()
+for(i in seq_along(sces)) {
+    # select the cell labeled as keratinocytes in the previous step
+  kera_sces[[i]] <- sces[[i]][sces[[i]]$cluster2=="keratinocyte"]
   
-  if (any(is.na(idx))) {
-    not_found <- c(not_found, markers_kera[i])
-  } else {
-    found <- c(found, markers_kera[i])
-  }
-}
-
-print(paste("Done:", length(not_found), "/", length(markers_kera), "markers not found"))
-```
-
-```{r check_markers, eval=FALSE}
-data_markers <- rowData(sce.patient1_HS)$Symbol
-known_markers <- c("DSC3","DSP","LGALS7","KRT5","KRT14","COL17A1","KRT1","KRT10","LOR", "SPINK5","KRT6B","GJB2","GJB6","ATP1B1","MGST1","FASN","DCD","AQP5","DCDN","LUM","MMP2","WISP2","SLPI","CTHRC1","MFAP5","TSPAN8","CCL19","APOE","CXCL2","CXCL3","EFEMP1","APCDD1","ID1","WIF1","COL18A1","PTGDS","ASPN","POSTN","GPC3","TNN","SFRP1","ACTA2","TAGLN","RGS5","MYL9","TPM2","RERGL","PECAM1","SELE","CLDN5","VWF","PROX1","LYVE1","HLA-DRA","FCER1G","TYROBP","AIF1","CD1C","CD207","CD68","RNASE1","SEPP1","ITGAX","CD3D","CD3E","CD52","IL7R","DCT","MLANA","PMEL","TYP1","CDH19","NGFR","UBE2C","PCNA")
-
-for (i in 1:length(known_markers)) {
-  idx <- grep(known_markers[i], data_markers, fixed=TRUE)
-
-  found <- c()
-  not_found <- c()
+  #---- run the pipeline again on that subdataset
   
-  if (any(is.na(idx))) {
-    not_found <- c(not_found, known_markers[i])
-  } else {
-    found <- c(found, known_markers[i])
+  kera_sces[[i]] <- kera_sces[[i]][(rowSums(counts(kera_sces[[i]]) > 0) > 4),]
+  
+  kera_vst[[i]] <- suppressWarnings(sctransform::vst(counts(kera_sces[[i]])))
+  
+  logcounts(kera_sces[[i]], withDimnames=FALSE) <- kera_vst[[i]]$y
+  
+  # get highly-variable genes
+  kera_hgvs[[i]] <- row.names(kera_sces[[i]])[order(kera_vst[[i]]$gene_attr$residual_variance, decreasing=TRUE)[1:2000]]
+  
+  #---- pca
+  
+  kera_sces[[i]] <- runPCA(kera_sces[[i]], subset_row=kera_hgvs[[i]])
+  
+  # check the variance explained by the PCs:
+  kera.pc.var[[i]] <- attr(reducedDim(kera_sces[[i]]),"percentVar")
+  plot(kera.pc.var[[i]], xlab="PCs", ylab="% variance explained")
+  
+  # restrict to the first 20 components:
+  reducedDim(kera_sces[[i]]) <- reducedDim(kera_sces[[i]])[,1:10]
+  
+  # run and plot 2d projections based on the PCA:
+  kera_sces[[i]] <- runTSNE(kera_sces[[i]], dimred="PCA")
+  kera_sces[[i]] <- runUMAP(kera_sces[[i]], dimred="PCA")
+  
+  #--- clustering
+  
+  kera_graphs[[i]] <- buildKNNGraph(kera_sces[[i]], BNPARAM=AnnoyParam(), use.dimred="PCA", k=30)
+  
+  
+  kera_g <- graphs[[i]]
+  kera_kms[[i]] <- lapply(genes.kera, FUN=function(kera_g) grep(paste0(kera_g, "$", collapse="|"), rownames(kera_sces[[i]]), value=TRUE))
+  
+  #---
+  
+  # mean logcounts by cluster:
+  kera_pbs[[i]] <- aggregateData(kera_sces[[i]], "logcounts", by=c("cluster"), fun="mean")
+  
+  # we will assign clusters to the cell type whose markers are the most expressed
+  # we extract the pseudo-bulk counts of the markers for each cluster
+  mat.patient1_HS.kera <- assay(kera_pbs[[i]])[unlist(kera_kms[[i]]),]
+  
+  # we aggregate across markers of the same type
+  mat.patient1_HS.kera <- aggregate(t(scale(t(mat.patient1_HS.kera))), by=list(type=rep(names(kera_kms[[i]]), lengths(kera_kms[[i]]))), FUN=sum)
+  
+  # for each column (cluster), we select the row (cell type) which has the maximum aggregated value
+  cl.patient1_HS.kera <- mat.patient1_HS.kera[,1][apply(mat.patient1_HS.kera[,-1], 2, FUN=which.max)]
+  # we convert the cells' cluster labels to cell type labels:
+  kera_sces[[i]]$cluster <- cl.patient1_HS.kera[kera_sces[[i]]$cluster]
+  
+  # we aggregate again to pseudo-bulk using the new clusters
+  kera_pbs[[i]] <- aggregateData(kera_sces[[i]], "logcounts", by=c("cluster"), fun="mean")
+  # we plot again the expression of the markers as a sanity check
+  h1.kera <- pheatmap(assay(kera_pbs[[i]])[unlist(kera_kms[[i]]),], annotation_row=data.frame(row.names=unlist(kera_kms[[i]]), type=rep(names(kera_kms[[i]]), lengths(kera_kms[[i]]))), split=rep(names(kera_kms[[i]]), lengths(kera_kms[[i]])), cluster_rows=FALSE, scale="row", main=sample_names[[i]])
+  print(h1)
+  p <- plotUMAP(kera_sces[[i]], colour_by="cluster", text_by="cluster", point_size=1) + ggtitle(sample_names[[i]])
+  print(p)
+  #plot_grid( plotTSNE(kera_sces[[i]], colour_by="cluster", text_by="cluster"), plotUMAP(kera_sces[[i]], colour_by="cluster", text_by="cluster") )
+  
+  
+  #--- check if the markers we're defining the keratinocyte subpopulations are present in the cells
+  # selecter by the keratinocyte cluster
+  markers_kera_cluster <- rowData(kera_sces[[i]])$Symbol
+  markers_kera <- c("DSC3","DSP","LGALS7","KRT5","KRT14","COL17A1","KRT1","KRT10","LOR", "SPINK5","KRT6B","GJB2","GJB6","ATP1B1","MGST1","FASN","DCD","AQP5")
+  
+  for (i in 1:length(markers_kera)) {
+    idx <- grep(markers_kera_cluster[i], markers_kera, fixed=TRUE)
+  
+    found <- c()
+    not_found <- c()
+    
+    if (any(is.na(idx))) {
+      not_found <- c(not_found, markers_kera[i])
+    } else {
+      found <- c(found, markers_kera[i])
+    }
   }
+  
+  print(paste("Done:", length(not_found), "/", length(markers_kera), "markers not found"))
 }
+  
 
-print(paste("Done:", length(not_found), "/", length(known_markers), "markers not found"))
+
+
+#only patient1_HS, probably DELETE
+# select the cell labeled as keratinocytes in the previous step
+# sce.patient1_HS.kera <- sce.patient1_HS[sce.patient1_HS$cluster2=="keratinocyte"]
+# 
+# #---- run the pipeline again on that subdataset
+# 
+# sce.patient1_HS.kera <- sce.patient1_HS.kera[(rowSums(counts(sce.patient1_HS.kera) > 0) > 4),]
+# 
+# vst.patient1_HS.kera <- suppressWarnings(sctransform::vst(counts(sce.patient1_HS.kera)))
+# 
+# logcounts(sce.patient1_HS.kera, withDimnames=FALSE) <- vst.patient1_HS.kera$y
+# 
+# # get highly-variable genes
+# hvg.patient1_HS.kera <- row.names(sce.patient1_HS.kera)[order(vst.patient1_HS.kera$gene_attr$residual_variance, decreasing=TRUE)[1:2000]]
+# 
+# #---- pca
+# 
+# sce.patient1_HS.kera <- runPCA(sce.patient1_HS.kera, subset_row=hvg.patient1_HS.kera)
+# 
+# # check the variance explained by the PCs:
+# pc.var.patient1_HS.kera <- attr(reducedDim(sce.patient1_HS.kera),"percentVar")
+# plot(pc.var.patient1_HS.kera, xlab="PCs", ylab="% variance explained")
+# 
+# # restrict to the first 20 components:
+# reducedDim(sce.patient1_HS.kera) <- reducedDim(sce.patient1_HS.kera)[,1:10]
+# 
+# # run and plot 2d projections based on the PCA:
+# sce.patient1_HS.kera <- runTSNE(sce.patient1_HS.kera, dimred="PCA")
+# sce.patient1_HS.kera <- runUMAP(sce.patient1_HS.kera, dimred="PCA")
+# 
+# #--- clustering
+# 
+# g.patient1_HS.kera <- buildKNNGraph(sce.patient1_HS.kera, BNPARAM=AnnoyParam(), use.dimred="PCA", k=30)
+# 
+# genes.kera <- list(
+#   # classification: https://www.sciencedirect.com/science/article/pii/S0923181120301985?via%3Dihub#bib0050
+#   # KERATINOCYTE
+#   #keratinocyte = c("DSC3","DSP","LGALS7"),
+#   keratinocyte_basal = c("KRT5","KRT14","COL17A1"),
+#   keratinocyte_suprabasal = c("KRT1","KRT10"),
+#   keratinocyte_differentiated = c("LOR", "SPINK5"),
+#   keratinocyte_ORS = c("KRT6B"),
+#   keratinocyte_channel = c("GJB2","GJB6","ATP1B1"),
+#   keratinocyte_sebaceous_gland = c("MGST1","FASN"),
+#   keratinocyte_sweat_gland  = c("DCD","AQP5")
+#   )
+# 
+# km.patient1_HS.kera <- lapply(genes.kera, FUN=function(g.patient1_HS.kera) grep(paste0(g.patient1_HS.kera, "$", collapse="|"), rownames(sce.patient1_HS.kera), value=TRUE))
+# 
+# #---
+# 
+# # mean logcounts by cluster:
+# pb.patient1_HS.kera <- aggregateData(sce.patient1_HS.kera, "logcounts", by=c("cluster"), fun="mean")
+# 
+# # we will assign clusters to the cell type whose markers are the most expressed
+# # we extract the pseudo-bulk counts of the markers for each cluster
+# mat.patient1_HS.kera <- assay(pb.patient1_HS.kera)[unlist(km.patient1_HS.kera),]
+# 
+# # we aggregate across markers of the same type
+# mat.patient1_HS.kera <- aggregate(t(scale(t(mat.patient1_HS.kera))), by=list(type=rep(names(km.patient1_HS.kera), lengths(km.patient1_HS.kera))), FUN=sum)
+# 
+# # for each column (cluster), we select the row (cell type) which has the maximum aggregated value
+# cl.patient1_HS.kera <- mat.patient1_HS.kera[,1][apply(mat.patient1_HS.kera[,-1], 2, FUN=which.max)]
+# # we convert the cells' cluster labels to cell type labels:
+# sce.patient1_HS.kera$cluster <- cl.patient1_HS.kera[sce.patient1_HS.kera$cluster]
+# 
+# # we aggregate again to pseudo-bulk using the new clusters
+# pb.patient1_HS.kera <- aggregateData(sce.patient1_HS.kera, "logcounts", by=c("cluster"), fun="mean")
+# # we plot again the expression of the markers as a sanity check
+# h1.kera <- pheatmap(assay(pb.patient1_HS.kera)[unlist(km.patient1_HS.kera),], annotation_row=data.frame(row.names=unlist(km.patient1_HS.kera), type=rep(names(km.patient1_HS.kera), lengths(km.patient1_HS.kera))), split=rep(names(km.patient1_HS.kera), lengths(km.patient1_HS.kera)), cluster_rows=FALSE, scale="row")
+# h1
+# plotUMAP(sce.patient1_HS.kera, colour_by="cluster", text_by="cluster", point_size=1)
+# #plot_grid( plotTSNE(sce.patient1_HS.kera, colour_by="cluster", text_by="cluster"), plotUMAP(sce.patient1_HS.kera, colour_by="cluster", text_by="cluster") )
+# 
+# 
+# #--- check if the markers we're defining the keratinocyte subpopulations are present in the cells
+# # selecter by the keratinocyte cluster
+# markers_kera_cluster <- rowData(sce.patient1_HS.kera)$Symbol
+# markers_kera <- c("DSC3","DSP","LGALS7","KRT5","KRT14","COL17A1","KRT1","KRT10","LOR", "SPINK5","KRT6B","GJB2","GJB6","ATP1B1","MGST1","FASN","DCD","AQP5")
+# 
+# for (i in 1:length(markers_kera)) {
+#   idx <- grep(markers_kera_cluster[i], markers_kera, fixed=TRUE)
+# 
+#   found <- c()
+#   not_found <- c()
+#   
+#   if (any(is.na(idx))) {
+#     not_found <- c(not_found, markers_kera[i])
+#   } else {
+#     found <- c(found, markers_kera[i])
+#   }
+# }
+# 
+# print(paste("Done:", length(not_found), "/", length(markers_kera), "markers not found"))
+# ```
+# 
+# ```{r check_markers, eval=FALSE}
+# data_markers <- rowData(sce.patient1_HS)$Symbol
+# known_markers <- c("DSC3","DSP","LGALS7","KRT5","KRT14","COL17A1","KRT1","KRT10","LOR", "SPINK5","KRT6B","GJB2","GJB6","ATP1B1","MGST1","FASN","DCD","AQP5","DCDN","LUM","MMP2","WISP2","SLPI","CTHRC1","MFAP5","TSPAN8","CCL19","APOE","CXCL2","CXCL3","EFEMP1","APCDD1","ID1","WIF1","COL18A1","PTGDS","ASPN","POSTN","GPC3","TNN","SFRP1","ACTA2","TAGLN","RGS5","MYL9","TPM2","RERGL","PECAM1","SELE","CLDN5","VWF","PROX1","LYVE1","HLA-DRA","FCER1G","TYROBP","AIF1","CD1C","CD207","CD68","RNASE1","SEPP1","ITGAX","CD3D","CD3E","CD52","IL7R","DCT","MLANA","PMEL","TYP1","CDH19","NGFR","UBE2C","PCNA")
+# 
+# for (i in 1:length(known_markers)) {
+#   idx <- grep(known_markers[i], data_markers, fixed=TRUE)
+# 
+#   found <- c()
+#   not_found <- c()
+#   
+#   if (any(is.na(idx))) {
+#     not_found <- c(not_found, known_markers[i])
+#   } else {
+#     found <- c(found, known_markers[i])
+#   }
+# }
+# 
+# print(paste("Done:", length(not_found), "/", length(known_markers), "markers not found"))
 ```
