@@ -302,7 +302,7 @@ pc.var.patient1_HS.kera <- attr(reducedDim(sce.patient1_HS.kera),"percentVar")
 plot(pc.var.patient1_HS.kera, xlab="PCs", ylab="% variance explained")
 
 # restrict to the first 20 components:
-reducedDim(sce.patient1_HS.kera) <- reducedDim(sce.patient1_HS.kera)[,1:20]
+reducedDim(sce.patient1_HS.kera) <- reducedDim(sce.patient1_HS.kera)[,1:10]
 
 # run and plot 2d projections based on the PCA:
 sce.patient1_HS.kera <- runTSNE(sce.patient1_HS.kera, dimred="PCA")
@@ -349,10 +349,29 @@ pb.patient1_HS.kera <- aggregateData(sce.patient1_HS.kera, "logcounts", by=c("cl
 # we plot again the expression of the markers as a sanity check
 h1.kera <- pheatmap(assay(pb.patient1_HS.kera)[unlist(km.patient1_HS.kera),], annotation_row=data.frame(row.names=unlist(km.patient1_HS.kera), type=rep(names(km.patient1_HS.kera), lengths(km.patient1_HS.kera))), split=rep(names(km.patient1_HS.kera), lengths(km.patient1_HS.kera)), cluster_rows=FALSE, scale="row")
 h1
-#plotUMAP(sce.patient1_HS.kera, colour_by="cluster", text_by="cluster", point_size=1)
-plot_grid( plotTSNE(sce.patient1_HS.kera, colour_by="cluster", text_by="cluster"), plotUMAP(sce.patient1_HS.kera, colour_by="cluster", text_by="cluster") )
-blabla <- rowData(sce.patient1_HS)$Symbol
+plotUMAP(sce.patient1_HS.kera, colour_by="cluster", text_by="cluster", point_size=1)
+#plot_grid( plotTSNE(sce.patient1_HS.kera, colour_by="cluster", text_by="cluster"), plotUMAP(sce.patient1_HS.kera, colour_by="cluster", text_by="cluster") )
 
+
+#--- check if the markers we're defining the keratinocyte subpopulations are present in the cells
+# selecter by the keratinocyte cluster
+markers_kera_cluster <- rowData(sce.patient1_HS.kera)$Symbol
+markers_kera <- c("DSC3","DSP","LGALS7","KRT5","KRT14","COL17A1","KRT1","KRT10","LOR", "SPINK5","KRT6B","GJB2","GJB6","ATP1B1","MGST1","FASN","DCD","AQP5")
+
+for (i in 1:length(markers_kera)) {
+  idx <- grep(markers_kera_cluster[i], markers_kera, fixed=TRUE)
+
+  found <- c()
+  not_found <- c()
+  
+  if (any(is.na(idx))) {
+    not_found <- c(not_found, markers_kera[i])
+  } else {
+    found <- c(found, markers_kera[i])
+  }
+}
+
+print(paste("Done:", length(not_found), "/", length(markers_kera), "markers not found"))
 ```
 
 ```{r check_markers, eval=FALSE}
@@ -372,5 +391,5 @@ for (i in 1:length(known_markers)) {
   }
 }
 
-print(paste("Done:", length(not_found), "markers not found in", length(known_markers), "known markers"))
+print(paste("Done:", length(not_found), "/", length(known_markers), "markers not found"))
 ```
