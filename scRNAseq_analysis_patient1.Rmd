@@ -415,7 +415,7 @@ genes.kera <- list(
 
 for(i in seq_along(sces)) {
     # select the cell labeled as keratinocytes in the previous step
-  kera_sces[[i]] <- sces[[i]][sces[[i]]$cluster2=="keratinocyte"]
+  kera_sces[[i]] <- sces[[i]][,sces[[i]]$cluster2=="keratinocyte"]
   
   #---- run the pipeline again on that subdataset
   
