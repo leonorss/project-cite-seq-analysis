@@ -40,6 +40,8 @@ suppressPackageStartupMessages({
 local.path <- getwd()
 setwd(local.path)
 experiments <- array()
+
+sample_names <- list("patient1_HS", "patient1_SCC", "patient2_HS", "patient2_AK")
 patient1_HS.path <- file.path("data", "patient1_HS")
 patient1_SCC.path <- file.path("data", "patient1_SCC")
 patient2_HS.path <- file.path("data", "patient2_HS")
@@ -69,8 +71,8 @@ sce.patient1_HS
 
 ```{r split-data}
 # only select the gene expression data, drop the antibody capture
-sces <- lapply(sces, function(i) i[rowData(i)$Type == "Gene Expression"])
-sce.patient1_HS <- sce.patient1_HS[rowData(sce.patient1_HS)$Type == "Gene Expression"]
+#sces <- lapply(sces, function(i) i[rowData(i)$Type == "Gene Expression"])
+#sce.patient1_HS <- sce.patient1_HS[rowData(sce.patient1_HS)$Type == "Gene Expression"]
 #sce.patient1_SCC <- sce.patient1_SCC[rowData(sce.patient1_SCC)$Type == "Gene Expression"]
 
 sces <- lapply(sces, function(i) splitAltExps(i, rowData(i)$Type))
@@ -83,6 +85,8 @@ sce.patient1_HS <- splitAltExps(sce.patient1_HS, rowData(sce.patient1_HS)$Type)
 # Coerce sparse matrix for ADT into a dense matrix
 counts(altExp(sce.patient1_HS)) <- as.matrix(counts(altExp(sce.patient1_HS)))
 #counts(altExp(sce.patient1_SCC)) <- as.matrix(counts(altExp(sce.patient1_SCC)))
+
+#TODO do we still need to the dense matrix ADT data?
 
 ```
 
@@ -125,14 +129,14 @@ plotPCA(sce.patient1_HS)
 #keep_feature <- rowSums(counts(sce.patient1_HS) > 0) > 4
 #sce.patient1_HS <- sce.patient1_HS[keep_feature,]
 
-sces <- lapply(sces, function(i) i[(rowSums(counts(sce.patient1_HS) > 0) > 4),])
+sces <- lapply(sces, function(i) i[(rowSums(counts(i) > 0) > 4),])
 
 sce.patient1_HS <- sce.patient1_HS[(rowSums(counts(sce.patient1_HS) > 0) > 4),]
 #sce.patient1_SCC <- sce.patient1_SCC[(rowSums(counts(sce.patient1_SCC) > 0) > 4),]
 
 vsts <- lapply(sces, function(i) suppressWarnings(sctransform::vst(counts((i)))))
 
-vst.patient2_HS <- suppressWarnings(sctransform::vst(counts(sces[[3]])))
+#vst.patient2_HS <- suppressWarnings(sctransform::vst(counts(sces[[3]])))
 
 vst.patient1_HS <- suppressWarnings(sctransform::vst(counts(sce.patient1_HS)))
 #vst.patient1_SCC <- suppressWarnings(sctransform::vst(counts(sce.patient1_SCC)))
@@ -141,9 +145,13 @@ vst.patient1_HS <- suppressWarnings(sctransform::vst(counts(sce.patient1_HS)))
 #nrow(vst.patient1_HS$y)
 #ncol(vst.patient1_HS$y)
 #nrow(counts(sce.patient1_HS))
+```
 
+```{r highly-variable-genes}
+hvgs <- list()
 for (i in seq_along(sces)) {
-  logcounts(s[i], withDimnames=FALSE) <- vsts[i]$y
+  logcounts(sces[[i]], withDimnames=FALSE) <- vsts[[i]]$y
+  hvgs[[i]] <- row.names(sces[[i]])[order(vsts[[i]]$gene_attr$residual_variance, decreasing=TRUE)[1:2000]]
 }
 
 logcounts(sce.patient1_HS, withDimnames=FALSE) <- vst.patient1_HS$y
@@ -160,6 +168,19 @@ hvg.patient1_HS <- row.names(sce.patient1_HS)[order(vst.patient1_HS$gene_attr$re
 
 ```{r pca}
 # run PCA
+pc.vars <- list()
+for (i in seq_along(sces)) {
+  #check the right number of PCs to use with variance explained
+  sces[[i]] <- runPCA(sces[[i]], subset_row=hvgs[[i]])
+  pc.vars[[i]] <- attr(reducedDim(sces[[i]]), "percentVar")
+  plot(pc.vars[[i]], xlab="PCs", ylab="% variance explained")
+  # restrict to the first 20 components:
+  reducedDim(sces[[i]]) <- reducedDim(sces[[i]])[,1:20]
+  # run and plot 2d projections based on the PCA:
+  sces[[i]] <- runTSNE(sces[[i]], dimred="PCA")
+  sces[[i]] <- runUMAP(sces[[i]], dimred="PCA")
+  
+}
 sce.patient1_HS <- runPCA(sce.patient1_HS, subset_row=hvg.patient1_HS)
 #sce.patient1_SCC <- runPCA(sce.patient1_SCC, subset_row=hvg.patient1_SCC)
 
@@ -186,14 +207,35 @@ sce.patient1_HS <- runUMAP(sce.patient1_HS, dimred="PCA")
 ## Clustering
 
 ```{r clustering}
-g.patient1_HS <- buildKNNGraph(sce.patient1_HS, BNPARAM=AnnoyParam(), use.dimred="PCA", k=30)
+
+  g.patient1_HS  <- buildKNNGraph(sce.patient1_HS, BNPARAM=AnnoyParam(), use.dimred="PCA", k=30)
 #g.patient1_SCC <- buildKNNGraph(sce.patient1_SCC, BNPARAM=AnnoyParam(), use.dimred="PCA", k=30)
 
-sce.patient1_HS$cluster <- as.factor(cluster_louvain(g.patient1_HS)$membership)
+  sce.patient1_HS$cluster <- as.factor(cluster_louvain(g.patient1_HS)$membership)
 #sce.patient1_SCC$cluster <- as.factor(cluster_louvain(g.patient1_SCC)$membership)
 
-plot_grid( plotTSNE(sce.patient1_HS, colour_by="cluster", text_by="cluster"), plotUMAP(sce.patient1_HS, colour_by="cluster", text_by="cluster") )
+  plot_grid( plotTSNE(sce.patient1_HS, colour_by="cluster", text_by="cluster"), plotUMAP(sce.patient1_HS, colour_by="cluster", text_by="cluster") )
 #plot_grid( plotTSNE(sce.patient1_SCC, colour_by="cluster", text_by="cluster"), plotUMAP(sce.patient1_SCC, colour_by="cluster", text_by="cluster") )
+
+```
+
+```{r clustering2}
+graphs <- list()
+
+
+for (i in seq_along(sces)) {
+  graphs[[i]]  <- buildKNNGraph(sces[[i]], BNPARAM=AnnoyParam(), use.dimred="PCA", k=30)
+#g.patient1_SCC <- buildKNNGraph(sce.patient1_SCC, BNPARAM=AnnoyParam(), use.dimred="PCA", k=30)
+
+  sces[[i]]$cluster <- as.factor(cluster_louvain(graphs[[i]])$membership)
+#sce.patient1_SCC$cluster <- as.factor(cluster_louvain(g.patient1_SCC)$membership)
+
+  print(sample_names[[i]])
+  pgrid <- plot_grid( plotTSNE(sces[[i]], colour_by="cluster", text_by="cluster") + ggtitle(sample_names[[i]]), plotUMAP(sces[[i]], colour_by="cluster", text_by="cluster") + ggtitle(sample_names[[i]]) )
+  print(pgrid)
+  
+#plot_grid( plotTSNE(sce.patient1_SCC, colour_by="cluster", text_by="cluster"), plotUMAP(sce.patient1_SCC, colour_by="cluster", text_by="cluster") )
+}
 ```
 
 # Cluster annotation
@@ -247,6 +289,14 @@ genes <- list(
   # MITOTIC CELL
   mitotic  = c("UBE2C","PCNA")
 )
+
+kms <- list()
+for(i in seq_along(sces)){
+  rownames(sces[[i]]) <- paste(rownames(sces[[i]]), rowData(sces[[i]])$Symbol, sep = ".")
+  graph_unit <- graphs[[i]]
+  kms[[i]] <- lapply(genes, FUN=function(graph_unit) grep(paste0(graph_unit, "$", collapse="|"), rownames(sces[[i]]), value=TRUE))
+}
+
 # since the row.names of the object have also the ensembl id, we find the matching row names for each gene:
 rownames(sce.patient1_HS) <- paste(rownames(sce.patient1_HS), rowData(sce.patient1_HS)$Symbol, sep = ".")
 #rownames(sce.patient1_SCC) <- paste(rownames(sce.patient1_SCC), rowData(sce.patient1_SCC)$Symbol, sep = ".")
