@@ -1,0 +1,148 @@
+---
+title: "QualityControl_Patient1_SCC"
+author: "Leonor Schubert"
+date: "30 12 2020"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+
+```{r libraries, message=FALSE}
+library('SingleCellExperiment')
+library('DropletUtils')
+library('scater')
+library('scDblFinder')
+#library('scuttle')
+# scater, scran, uwot
+
+```
+
+```{r readData}
+# set local path
+local.path <- getwd()
+setwd(local.path)
+patient1_SCC.path <- file.path("data", "patient1_SCC")
+
+# read in unfiltered data
+fname <- file.path(patient1_SCC.path, "outs/raw_feature_bc_matrix")
+sce.patient1_SCC <- read10xCounts(fname, col.names=TRUE)
+
+# rename genes
+rownames(sce.patient1_SCC) <- uniquifyFeatureNames(rowData(sce.patient1_SCC)$ID, rowData(sce.patient1_SCC)$Symbol)
+
+# put antibody data in seperate summarizedExperiment inside our singleCellExperiment
+sce.patient1_SCC <- splitAltExps(sce.patient1_SCC, rowData(sce.patient1_SCC)$Type)
+# altExp(sce.patient1_SCC)
+
+# from sparse to normal matrix for downstream analysis
+counts(altExp(sce.patient1_SCC)) <- as.matrix(counts(altExp(sce.patient1_SCC)))
+
+```
+
+```{r qualityControl_Antibodies}
+# remove cells that have failed to capture/sequence antibodies, remove cells that have unusually low numbers antibodies (less than or equal to half of the total number of tags)
+df.ab.patient1_SCC <- perCellQCMetrics(altExp(sce.patient1_SCC))
+
+# exclude antibodies with zero counts across all cells
+number.nonzero.patient1_SCC <- sum(!rowAlls(counts(altExp(sce.patient1_SCC)), value=0L))
+#discard.ab.patient1_SCC <- df.ab.patient1_SCC$detected <= number.nonzero.patient1_SCC/2
+discard.ab.patient1_SCC <- df.ab.patient1_SCC$detected <= 25
+
+summary(discard.ab.patient1_SCC)
+
+# distribution of the number of detected antibodies across all cells, redline=threshold, below cells are discarded (looks like almost all?)
+hist(df.ab.patient1_SCC$detected, col='grey', main="", xlab="Number of detected Antibody-tags")
+#abline(v=number.nonzero.patient1_SCC/2, col="red", lty=2)
+
+abline(v=25, col="red", lty=2)
+
+
+## Should we really discard all these cells (668'282), would only keep 68'998?
+## I wouldn't think so, but in the pipeline in the bioconductor this is what would be done...
+```
+
+```{r qualityControl_emptyDroplets}
+# using emptyDrops
+set.seed(11)
+
+# use emptyDrops algorithm to predict which cells are probably empty
+e.out.patient1_SCC <- emptyDrops(counts(sce.patient1_SCC), niters = 100000, test.ambient=TRUE)
+
+# look at sum summary statistics (non-significant & limited field should be 0, otherwise ran emptyDrops again with higher niters)
+summary(e.out.patient1_SCC$FDR <= 0.001)
+table(Sig=e.out.patient1_SCC$FDR <= 0.001, Limited=e.out.patient1_SCC$Limited)
+
+# should have an approx. uniform distribution, especially at the beginning (if high peaks there, decrease lower in emptyDrops)
+hist(e.out.patient1_SCC$PValue[e.out.patient1_SCC$Total <= 100 & e.out.patient1_SCC$Total > 0],
+    xlab="P-value", main="", col="grey80")
+
+# subset sce
+sce.patient1_SCC <- sce.patient1_SCC[, which(e.out.patient1_SCC$FDR <= 0.001)]
+```
+
+```{r qualityControl_doublets}
+# compute score for each each cell reperesenting how likely it is a doublet
+sce.patient1_SCC <- scDblFinder(sce.patient1_SCC, minClusSize=100)
+table(sce.patient1_SCC$scDblFinder.class)
+
+# removing doublets
+sce.patient1_SCC <- sce.patient1_SCC[, sce.patient1_SCC$scDblFinder.class!="doublet"]
+```
+
+```{r qualityControl_deadCells}
+# discard dead cells by looking at where there's high percentage of mitochondrial RNA
+mito <- grep("^MT-", rowData(sce.patient1_SCC)$Symbol)
+df.mito.patient1_SCC <- perCellQCMetrics(sce.patient1_SCC, subsets=list(Mito=mito))
+discard.mito.patient1_SCC <- isOutlier(df.mito.patient1_SCC$subsets_Mito_percent, type="higher")
+
+# looks like quite a lot of cells (416 out of 2415) ?
+summary(discard.mito.patient1_SCC)
+
+# plot cells which are dismissed bc. of high mitochondrial expression, don't want to dismiss any in the upper right corner, which are high quality cells
+# a lot of cells with medium total count are getting discarded...?
+plot(df.mito.patient1_SCC$sum, df.mito.patient1_SCC$subsets_Mito_percent, log="x",
+    xlab="Total count", ylab='Mitochondrial %') 
+abline(h=attr(discard.mito.patient1_SCC, "thresholds")["higher"], col="red")
+```
+
+```{r qualityControl_outliers}
+# compute outliers bc. of low library sizes and detection rates
+qc.lib2.patient1_SCC <- isOutlier(df.mito.patient1_SCC$sum, log=TRUE, type="lower")
+qc.nexprs2.patient1_SCC <- isOutlier(df.mito.patient1_SCC$detected, log=TRUE, type="lower")
+
+# discard all low quality cells (not including antibody quality assesment since otherwise almost all cells would be discarded)
+discard.patient1_SCC <- qc.lib2.patient1_SCC | qc.nexprs2.patient1_SCC | discard.mito.patient1_SCC
+
+# overviews of discarded cells
+# 450 a lot of cells?
+DataFrame(LibSize=sum(qc.lib2.patient1_SCC), NExprs=sum(qc.nexprs2.patient1_SCC), MitoProp=sum(discard.mito.patient1_SCC), Total=sum(discard.patient1_SCC))
+
+# plotting of the above metrics, should have almost no tail, bc. these are the outliers we want to get rid of
+qc.patient1_SCC <- as.data.frame((df.mito.patient1_SCC))
+# don't want tail on right side
+ggplot(qc.patient1_SCC, aes(subsets_Mito_percent)) + geom_histogram() 
+# don't want tail on left side
+ggplot(qc.patient1_SCC, aes(log10(sum))) + geom_histogram() 
+# number of reads should correlate with the number of genes detected??
+ggplot(qc.patient1_SCC, aes(log10(sum), log10(detected))) + geom_point() + geom_density2d()
+
+```
+
+```{r checkQualityControl}
+# check that an entire cell type is not inadvertently discarded
+lost.patient1_SCC <- calculateAverage(counts(sce.patient1_SCC)[, !discard.patient1_SCC])
+kept.patient1_SCC <- calculateAverage(counts(sce.patient1_SCC)[, discard.patient1_SCC])
+
+logged.patient1_SCC <- cpm(cbind(lost.patient1_SCC, kept.patient1_SCC), log=TRUE, prior.count=2)
+logFC.patient1_SCC <- logged.patient1_SCC[, 1] - logged.patient1_SCC[, 2]
+abundance.patient1_SCC <- rowMeans(logged.patient1_SCC)
+
+plot(abundance.patient1_SCC, logFC.patient1_SCC, xlab="Average count", ylab="Log-FC (lost/kept)", pch=16)
+```
+
+```{r discardLowQualityCells}
+sce.patient1_SCC <- sce.patient1_SCC[, !discard.patient1_SCC]
+```
