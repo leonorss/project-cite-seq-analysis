@@ -1,0 +1,149 @@
+---
+title: "QualityControl_Patient2_HS"
+author: "Leonor Schubert"
+date: "14 12 2020"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+
+```{r libraries, message=FALSE}
+library('SingleCellExperiment')
+library('DropletUtils')
+library('scater')
+library('scDblFinder')
+library('edgeR')
+#library('scuttle')
+# scater, scran, uwot
+
+```
+
+```{r readData}
+# set local path
+local.path <- getwd()
+setwd(local.path)
+patient2_HS.path <- file.path("data", "patient2_HS")
+
+# read in unfiltered data
+fname <- file.path(patient2_HS.path, "outs/raw_feature_bc_matrix")
+sce.patient2_HS <- read10xCounts(fname, col.names=TRUE)
+
+# rename genes
+rownames(sce.patient2_HS) <- uniquifyFeatureNames(rowData(sce.patient2_HS)$ID, rowData(sce.patient2_HS)$Symbol)
+
+# put antibody data in seperate summarizedExperiment inside our singleCellExperiment
+sce.patient2_HS <- splitAltExps(sce.patient2_HS, rowData(sce.patient2_HS)$Type)
+# altExp(sce.patient2_HS)
+
+# from sparse to normal matrix for downstream analysis
+counts(altExp(sce.patient2_HS)) <- as.matrix(counts(altExp(sce.patient2_HS)))
+
+```
+
+```{r qualityControl_Antibodies}
+# remove cells that have failed to capture/sequence antibodies, remove cells that have unusually low numbers antibodies (less than or equal to half of the total number of tags)
+df.ab.patient2_HS <- perCellQCMetrics(altExp(sce.patient2_HS))
+
+# exclude antibodies with zero counts across all cells
+number.nonzero.patient2_HS <- sum(!rowAlls(counts(altExp(sce.patient2_HS)), value=0L))
+#discard.ab.patient2_HS <- df.ab.patient2_HS$detected <= number.nonzero.patient2_HS/2
+discard.ab.patient2_HS <- df.ab.patient2_HS$detected <= 25
+
+summary(discard.ab.patient2_HS)
+
+# distribution of the number of detected antibodies across all cells, redline=threshold, below cells are discarded (looks like almost all?)
+hist(df.ab.patient2_HS$detected, col='grey', main="", xlab="Number of detected Antibody-tags")
+#abline(v=number.nonzero.patient2_HS/2, col="red", lty=2)
+
+abline(v=25, col="red", lty=2)
+
+
+## Should we really discard all these cells (666424), would only keep 70856?
+## I wouldn't think so, but in the pipeline in the bioconductor this is what would be done...
+```
+
+```{r qualityControl_emptyDroplets}
+# using emptyDrops
+set.seed(11)
+
+# use emptyDrops algorithm to predict which cells are probably empty
+e.out.patient2_HS <- emptyDrops(counts(sce.patient2_HS), niters = 50000, test.ambient=TRUE)
+
+# look at sum summary statistics (non-significant & limited field should be 0, otherwise ran emptyDrops again with higher niters)
+summary(e.out.patient2_HS$FDR <= 0.001)
+table(Sig=e.out.patient2_HS$FDR <= 0.001, Limited=e.out.patient2_HS$Limited)
+
+# should have an approx. uniform distribution, especially at the beginning (if high peaks there, decrease lower in emptyDrops)
+hist(e.out.patient2_HS$PValue[e.out.patient2_HS$Total <= 100 & e.out.patient2_HS$Total > 0],
+    xlab="P-value", main="", col="grey80")
+
+# subset sce
+sce.patient2_HS <- sce.patient2_HS[, which(e.out.patient2_HS$FDR <= 0.001)]
+```
+
+```{r qualityControl_doublets}
+# compute score for each each cell reperesenting how likely it is a doublet
+sce.patient2_HS <- scDblFinder(sce.patient2_HS)
+table(sce.patient2_HS$scDblFinder.class)
+
+# removing doublets
+sce.patient2_HS <- sce.patient2_HS[, sce.patient2_HS$scDblFinder.class!="doublet"]
+```
+
+```{r qualityControl_deadCells}
+# discard dead cells by looking at where there's high percentage of mitochondrial RNA
+mito <- grep("^MT-", rowData(sce.patient2_HS)$Symbol)
+df.mito.patient2_HS <- perCellQCMetrics(sce.patient2_HS, subsets=list(Mito=mito))
+discard.mito.patient2_HS <- isOutlier(df.mito.patient2_HS$subsets_Mito_percent, type="higher")
+
+# looks like quite a lot of cells?
+summary(discard.mito.patient2_HS)
+
+# plot cells which are dismissed bc. of high mitochondrial expression, don't want to dismiss any in the upper right corner, which are high quality cells
+plot(df.mito.patient2_HS$sum, df.mito.patient2_HS$subsets_Mito_percent, log="x",
+    xlab="Total count", ylab='Mitochondrial %') 
+abline(h=attr(discard.mito.patient2_HS, "thresholds")["higher"], col="red")
+```
+
+```{r qualityControl_outliers}
+# compute outliers bc. of low library sizes and detection rates
+qc.lib2.patient2_HS <- isOutlier(df.mito.patient2_HS$sum, log=TRUE, type="lower")
+qc.nexprs2.patient2_HS <- isOutlier(df.mito.patient2_HS$detected, log=TRUE, type="lower")
+
+# discard all low quality cells (not including antibody quality assesment since otherwise almost all cells would be discarded)
+discard.patient2_HS <- qc.lib2.patient2_HS | qc.nexprs2.patient2_HS | discard.mito.patient2_HS
+
+# overviews of discarded cells
+DataFrame(LibSize=sum(qc.lib2.patient2_HS), NExprs=sum(qc.nexprs2.patient2_HS), MitoProp=sum(discard.mito.patient2_HS), Total=sum(discard.patient2_HS))
+
+# plotting of the above metrics, tails are things we want to get rid of
+qc.patient2_HS <- as.data.frame((df.mito.patient2_HS))
+# don't want tail on right side
+ggplot(qc.patient2_HS, aes(subsets_Mito_percent)) + geom_histogram() 
+# don't want tail on left side
+ggplot(qc.patient2_HS, aes(log10(sum))) + geom_histogram() 
+# number of reads should correlate with the number of genes detected??
+ggplot(qc.patient2_HS, aes(log10(sum), log10(detected))) + geom_point() + geom_density2d()
+
+```
+
+
+```{r checkQualityControl}
+# check that an entire cell type is not inadvertently discarded
+lost.patient2_HS <- calculateAverage(counts(sce.patient2_HS)[, !discard.patient2_HS])
+kept.patient2_HS <- calculateAverage(counts(sce.patient2_HS)[, discard.patient2_HS])
+
+logged.patient2_HS <- edgeR::cpm(cbind(lost.patient2_HS, kept.patient2_HS), log=TRUE, prior.count=2)
+logFC.patient2_HS <- logged.patient2_HS[, 1] - logged.patient2_HS[, 2]
+abundance.patient2_HS <- rowMeans(logged.patient2_HS)
+
+plot(abundance.patient2_HS, logFC.patient2_HS, xlab="Average count", ylab="Log-FC (lost/kept)", pch=16)
+```
+
+```{r discardLowQualityCells}
+# discard low quality cells
+sce.patient2_HS <- sce.patient2_HS[, !discard.patient2_HS]
+```
