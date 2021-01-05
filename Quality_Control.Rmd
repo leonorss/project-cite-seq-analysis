@@ -22,7 +22,7 @@ library('scDblFinder')
 
 
 ```{r qualityControlFunction}
-processCellRangerOutput <- function(patientName, emptyDropsIterations, save, returnSCE) {
+processCellRangerOutput <- function(patientName, emptyDropsIterations, save, returnSCE, removeEmptyDroplets) {
 
   ### readData
   # set local path
@@ -30,8 +30,13 @@ processCellRangerOutput <- function(patientName, emptyDropsIterations, save, ret
   setwd(local.path)
   path <- file.path("data", patientName)
   
-  # read in unfiltered data
-  fname <- file.path(path, "outs/raw_feature_bc_matrix")
+  # read in unfiltered/filtered data
+  if (isTRUE(removeEmptyDroplets)) {
+    fname <- file.path(path, "outs/raw_feature_bc_matrix")
+  } else {
+    fname <- file.path(path, "outs/filtered_feature_bc_matrix")
+  }
+  
   sce <- read10xCounts(fname, col.names=TRUE)
   
   # rename genes
@@ -74,27 +79,28 @@ processCellRangerOutput <- function(patientName, emptyDropsIterations, save, ret
   ## I wouldn't think so, but in the pipeline in the bioconductor this is what would be done...
 
 
-  ### Quality Control empty Droplets
-  # using emptyDrops
-  set.seed(11)
-  
-  # use emptyDrops algorithm to predict which cells are probably empty
-  ## 1SCC = 100000, 1HS = 100000, 2HS = 50000, 2AK = 100000
-  e.out <- emptyDrops(counts(sce), niters = emptyDropsIterations, test.ambient=TRUE)
-  
-  # look at sum summary statistics (non-significant & limited field should be 0, otherwise ran emptyDrops again with higher niters)
-  print("Summaries of FDR smaller than 0.001 of the output of the empty Droplets algorithm:")
-  print(summary(e.out$FDR <= 0.001))
-  print(table(Sig=e.out$FDR <= 0.001, Limited=e.out$Limited))
-  
-  # should have an approx. uniform distribution, especially at the beginning (if high peaks there, decrease lower in emptyDrops)
-  print("Histogram showing the P-values of the output of the empty Droplets algorithm: ")
-  hist(e.out$PValue[e.out$Total <= 100 & e.out$Total > 0],
-      xlab="P-value", main=paste0(patientName, ": P-values calculated by emptyDroplets"), col="grey80")
-  
-  # subset sce
-  sce <- sce[, which(e.out$FDR <= 0.001)]
-  
+  if (isTRUE(removeEmptyDroplets)){
+    ### Quality Control empty Droplets
+    # using emptyDrops
+    set.seed(11)
+    
+    # use emptyDrops algorithm to predict which cells are probably empty
+    ## 1SCC = 100000, 1HS = 100000, 2HS = 50000, 2AK = 100000
+    e.out <- emptyDrops(counts(sce), niters = emptyDropsIterations, test.ambient=TRUE)
+    
+    # look at sum summary statistics (non-significant & limited field should be 0, otherwise ran emptyDrops again with higher niters)
+    print("Summaries of FDR smaller than 0.001 of the output of the empty Droplets algorithm:")
+    print(summary(e.out$FDR <= 0.001))
+    print(table(Sig=e.out$FDR <= 0.001, Limited=e.out$Limited))
+    
+    # should have an approx. uniform distribution, especially at the beginning (if high peaks there, decrease lower in emptyDrops)
+    print("Histogram showing the P-values of the output of the empty Droplets algorithm: ")
+    hist(e.out$PValue[e.out$Total <= 100 & e.out$Total > 0],
+        xlab="P-value", main=paste0(patientName, ": P-values calculated by emptyDroplets"), col="grey80")
+    
+    # subset sce
+    sce <- sce[, which(e.out$FDR <= 0.001)]
+  }  
 
   ### Quality Control dead Cells
   # discard dead cells by looking at where there's high percentage of mitochondrial RNA
@@ -195,6 +201,6 @@ processCellRangerOutput <- function(patientName, emptyDropsIterations, save, ret
 ```
 
 ```{r test}
-processCellRangerOutput("patient1_HS", 100000, TRUE, FALSE)
+processCellRangerOutput("patient1_HS", 100000, TRUE, FALSE, TRUE)
 
 ```
