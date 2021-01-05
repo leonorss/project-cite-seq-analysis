@@ -44,11 +44,6 @@ patient1_HS.path <- file.path("data", "patient1_HS")
 # read in filtered data
 fnameHS <- file.path(patient1_HS.path, "outs/filtered_feature_bc_matrix")
 
-# single cell experiment
-sce.patient1_HS <- read10xCounts(fnameHS, col.names=TRUE)
-
-sce.patient1_HS
-
 #define data we want to look at
 sample_names <- list("patient1_HS", "patient1_SCC", "patient2_HS", "patient2_AK")
 patient1_HS.path <- file.path("data", "patient1_HS")
@@ -58,11 +53,9 @@ patient2_AK.path <- file.path("data", "patient2_AK")
 
 
 
-
 # read in filtered data and create list of SingleCellExperiment objects
 paths <- list(patient1_HS.path, patient1_SCC.path, patient2_HS.path, patient2_AK.path)
 sces <- lapply(paths, function(i) read10xCounts(file.path(i, "outs/filtered_feature_bc_matrix"), col.names = TRUE))
-
 
 
 
@@ -81,8 +74,20 @@ split_data <- function(sceo) {
   sceo
 }
 
-sce.patient1_HS <- split_data(sce.patient1_HS)
+sces <- lapply(sces, split_data)
 
+#sce.patient1_HS <- split_data(sce.patient1_HS)
+#sce.patient1_SCC <- split_data(sce.)
+
+sce.patient1_HS <- sces[[1]]
+sce.patient1_SCC <- sces[[2]]
+sce.patient2_HS <- sces[[3]]
+sce.patient2_AK <- sces[[4]]
+
+attr(sce.patient1_HS, "name") <- "Patient 1, HS"
+attr(sce.patient1_SCC, "name") <- "Patient 1, SCC"
+attr(sce.patient2_HS, "name") <- "Patient 2, HS"
+attr(sce.patient2_AK, "name") <- "Patient 2, AK"
 ```
 
 
@@ -121,7 +126,7 @@ assayNames(sce.patient1_HS)
 sce.patient1_HS <- runPCA(sce.patient1_HS)
 plotPCA(sce.patient1_HS)
 ```
-=> log transfo doesn't give satisfying results, we'll try variance-stabilizing transformation
+=> log transform doesn't give satisfying results, we'll try variance-stabilizing transformation
 
 ```{r vst}
 # get rid of seldom detected genes
@@ -129,10 +134,12 @@ remove_rare_genes <- function(sceo, num_genes) {
   sceo <- sceo[(rowSums(counts(sceo) > 0) > num_genes),]
 }
 
-sce.patient1_HS <- remove_rare_genes(sce.patient1_HS, 4)
+#sce.patient1_HS <- remove_rare_genes(sceo, 4)
 
 variance_stabilization <- function(sceo, num_genes) {
 
+  
+  sceo <- remove_rare_genes(sceo, 4)
   vsto <- suppressWarnings(sctransform::vst(counts(sceo)))
   
   logcounts(sceo, withDimnames=FALSE) <- vsto$y
@@ -149,6 +156,19 @@ variance_stabilization <- function(sceo, num_genes) {
 results <- variance_stabilization(sce.patient1_HS, 2000)
 sce.patient1_HS <- results[[1]]
 hvg.patient1_HS <- results[[2]]
+
+results <- variance_stabilization(sce.patient1_SCC, 2000)
+sce.patient1_SCC <- results[[1]]
+hvg.patient1_SCC <- results[[2]]
+
+results <- variance_stabilization(sce.patient2_HS, 2000)
+sce.patient2_HS <- results[[1]]
+hvg.patient2_HS <- results[[2]]
+
+results <- variance_stabilization(sce.patient2_AK, 2000)
+sce.patient2_AK <- results[[1]]
+hvg.patient2_AK <- results[[2]]
+
 
 ```
 
@@ -189,6 +209,11 @@ sc_PCA <- function(sceo, hvgo, known_markers) {
 }
 
 sce.patient1_HS <- sc_PCA(sce.patient1_HS, hvg.patient1_HS, known_markers)
+sce.patient1_SCC <- sc_PCA(sce.patient1_SCC, hvg.patient1_SCC, known_markers)
+sce.patient2_HS <- sc_PCA(sce.patient2_HS, hvg.patient2_HS, known_markers)
+sce.patient2_AK <- sc_PCA(sce.patient2_AK, hvg.patient2_AK, known_markers)
+
+
 
 ```
 
@@ -200,7 +225,7 @@ sc_cluster <- function(sceo, k=30) {
 
   sceo$cluster <- as.factor(cluster_louvain(go)$membership)
 
-  plots <- plot_grid( plotTSNE(sceo, colour_by="cluster", text_by="cluster"), plotUMAP(sceo, colour_by="cluster", text_by="cluster") )
+  plots <- plot_grid( plotTSNE(sceo, colour_by="cluster", text_by="cluster") + ggtitle(attr(sceo, "name")), plotUMAP(sceo, colour_by="cluster", text_by="cluster") + ggtitle(attr(sceo, "name")) ) 
   print(plots)
   return(list(sceo, go))
   
@@ -209,6 +234,18 @@ sc_cluster <- function(sceo, k=30) {
 results <- sc_cluster(sce.patient1_HS)
 sce.patient1_HS <- results[[1]]
 g.patient1_HS <- results[[2]]
+
+results <- sc_cluster(sce.patient1_SCC)
+sce.patient1_SCC <- results[[1]]
+g.patient1_SCC <- results[[2]]
+
+results <- sc_cluster(sce.patient2_HS)
+sce.patient2_HS <- results[[1]]
+g.patient2_HS <- results[[2]]
+
+results <- sc_cluster(sce.patient2_AK)
+sce.patient2_AK <- results[[1]]
+g.sce.patient2_AK <- results[[2]]
 
 ```
 
@@ -267,16 +304,27 @@ genes <- list(
 )
 # since the row.names of the object have also the ensembl id, we find the matching row names for each gene:
 
-annotate_cells <- function(sceo, go) {
+annotate_cells <- function(sceo, go, genes) {
   rownames(sceo) <- paste(rownames(sceo), rowData(sceo)$Symbol, sep = ".")
   kmo <- lapply(genes, FUN=function(go) grep(paste0(go, "$", collapse="|"), rownames(sceo), value=TRUE))
   return(list(sceo, kmo))
 }
 
-results <- annotate_cells(sce.patient1_HS, g.patient1_HS)
-
+results <- annotate_cells(sce.patient1_HS, g.patient1_HS, genes)
 sce.patient1_HS <- results[[1]]
 km.patient1_HS <- results[[2]]
+
+results <- annotate_cells(sce.patient1_SCC, g.patient1_SCC, genes)
+sce.patient1_SCC <- results[[1]]
+km.patient1_SCC <- results[[2]]
+
+results <- annotate_cells(sce.patient2_HS, g.patient2_HS, genes)
+sce.patient2_HS <- results[[1]]
+km.patient2_HS <- results[[2]]
+
+results <- annotate_cells(sce.patient2_AK, g.patient2_AK, genes)
+sce.patient2_AK <- results[[1]]
+km.patient2_AK <- results[[2]]
 
 #rownames(sce.patient1_HS) <- paste(rownames(sce.patient1_HS), rowData(sce.patient1_HS)$Symbol, sep = ".")
 
@@ -315,12 +363,13 @@ pseudobulk <- function(sceo, kmo) {
   # we plot again the expression of the markers as a sanity check
   h1 <- pheatmap(assay(pbo)[unlist(kmo),], annotation_row=data.frame(row.names=unlist(kmo), type=rep(names(kmo), lengths(kmo))), split=rep(names(kmo), lengths(kmo)), cluster_rows=FALSE, scale="row", main="After markers aggregation", fontsize_row=6, fontsize_col=10)
   print(h1)
-  p <- plotUMAP(sceo, colour_by="cluster2", text_by="cluster2", point_size=1)
+  p <- plotUMAP(sceo, colour_by="cluster2", text_by="cluster2", point_size=1) + ggtitle(attr(sceo, "name"))
   print(p)
   
   return(list(sceo, pbo, mato, cl2o))
 }
 
+#Patient 1 HS
 results <- pseudobulk(sce.patient1_HS, km.patient1_HS)
 
 sce.patient1_HS <- results[[1]]
@@ -328,176 +377,235 @@ pb.patient1_HS <- results[[2]]
 mat.patient1_HS <- results[[3]]
 cl2.patient1_HS <- results[[4]]
 
+#Patient 1 SCC
+results <- pseudobulk(sce.patient1_SCC, km.patient1_SCC)
+
+sce.patient1_SCC <- results[[1]]
+pb.patient1_SCC <- results[[2]]
+mat.patient1_SCC <- results[[3]]
+cl2.patient1_SCC <- results[[4]]
+
+#Patient 2 HS
+results <- pseudobulk(sce.patient2_HS, km.patient2_HS)
+
+sce.patient2_HS <- results[[1]]
+pb.patient2_HS <- results[[2]]
+mat.patient2_HS <- results[[3]]
+cl2.patient2_HS <- results[[4]]
+
+#Patient 2 AK
+results <- pseudobulk(sce.patient2_AK, km.patient2_AK)
+
+sce.patient2_AK <- results[[1]]
+pb.patient2_AK <- results[[2]]
+mat.patient2_AK <- results[[3]]
+cl2.patient2_AK <- results[[4]]
 
 ```
 
 # Sub population
 ```{r keratinocyte}
-# select the cell labeled as keratinocytes in the previous step
-sce.patient1_HS.kera <- sce.patient1_HS[,sce.patient1_HS$cluster2=="keratinocyte"]
 
-sce.patient1_HS.kera <- remove_rare_genes(sce.patient1_HS.kera, 4)
-results <- variance_stabilization(sce.patient1_HS.kera, 2000)
 
-sce.patient1_HS.kera <- results[[1]]
-hvg.patient1_HS.kera <- results[[2]]
+cluster_subtype <- function(sceo, cell_type, known_markers, subtype_markers) {
+    # select the cell labeled as keratinocytes in the previous step
+  sceo.kera <- sceo[,sceo$cluster2==cell_type]
+  
+  sceo.kera <- remove_rare_genes(sceo.kera, 4)
+  results <- variance_stabilization(sceo.kera, 2000)
+  
+  sceo.kera <- results[[1]]
+  hvgo.kera <- results[[2]]
+  
+  #---- run the pipeline again on that subdataset
+  
+  
+  
+  sceo.kera <- sc_PCA(sceo.kera, hvgo.kera, known_markers)
+  
+  #--- clustering
+  
+  results <- sc_cluster(sceo.kera)
+  sceo.kera <- results[[1]]
+  go.kera <- results[[2]]
+  
+  
+  
+  results <- annotate_cells(sceo.kera, go.kera, subtype_markers)
+  
+  sceo.kera <- results[[1]]
+  kmo.kera <- results[[2]]
+  
+  #---
+  
+  results <- pseudobulk(sceo.kera, kmo.kera)
+  
+  sceo.kera <- results[[1]]
+  pbo.kera <- results[[2]]
+  mato.kera <- results[[3]]
+  cl2o.kera <- results[[4]]
+  
+  
+  #--- check if the markers we're defining the keratinocyte subpopulations are present in the cells
+  # selecter by the keratinocyte cluster
+  markers_kera_cluster <- rowData(sceo.kera)$Symbol
+  markers_kera <- c("KRT5","KRT14","COL17A1","KRT1","KRT10","LOR", "SPINK5","KRT6B","GJB2","GJB6","ATP1B1","MGST1","FASN","DCD","AQP5")
+  
+  idx_notfound <- which(!(markers_kera %in% markers_kera_cluster))
+  idx_found <- which(markers_kera %in% markers_kera_cluster)
+  cat("Not found:", markers_kera[idx_notfound], "\n")
+  cat("Found:", markers_kera[idx_found])
+  
+  print(paste("Done:", length(idx_found), "/", length(markers_kera), "markers found"))
+    
+    
+  
+}
 
-#---- run the pipeline again on that subdataset
+
 known_markers.kera <- c("KRT5","KRT14","COL17A1","KRT1","KRT10","LOR", "SPINK5","KRT6B","GJB2","GJB6","ATP1B1","MGST1","FASN","DCD","AQP5")
 
-
-sce.patient1_HS.kera <- sc_PCA(sce.patient1_HS.kera, hvg.patient1_HS.kera, known_markers.kera)
-
-#--- clustering
-
-results <- sc_cluster(sce.patient1_HS.kera)
-sce.patient1_HS.kera <- results[[1]]
-g.patient1_HS.kera <- results[[2]]
-
 #annotate the subclusters
-genes.kera <- list(
-  # classification: https://www.sciencedirect.com/science/article/pii/S0923181120301985?via%3Dihub#bib0050
-  # KERATINOCYTE
-  #keratinocyte = c("DSC3","DSP","LGALS7"),
-  keratinocyte_basal = c("KRT5","KRT14","COL17A1"),
-  keratinocyte_suprabasal = c("KRT1","KRT10"),
-  keratinocyte_differentiated = c("LOR", "SPINK5"),
-  keratinocyte_ORS = c("KRT6B"),
-  keratinocyte_channel = c("GJB2","GJB6","ATP1B1"),
-  keratinocyte_sebaceous_gland = c("MGST1","FASN"),
-  keratinocyte_sweat_gland  = c("DCD","AQP5")
-  )
+  genes.kera <- list(
+    # classification: https://www.sciencedirect.com/science/article/pii/S0923181120301985?via%3Dihub#bib0050
+    # KERATINOCYTE
+    #keratinocyte = c("DSC3","DSP","LGALS7"),
+    keratinocyte_basal = c("KRT5","KRT14","COL17A1"),
+    keratinocyte_suprabasal = c("KRT1","KRT10"),
+    keratinocyte_differentiated = c("LOR", "SPINK5"),
+    keratinocyte_ORS = c("KRT6B"),
+    keratinocyte_channel = c("GJB2","GJB6","ATP1B1"),
+    keratinocyte_sebaceous_gland = c("MGST1","FASN"),
+    keratinocyte_sweat_gland  = c("DCD","AQP5")
+    )
 
-results <- annotate_cells(sce.patient1_HS.kera, g.patient1_HS.kera)
+sce.patient1_HS.kera <- cluster_subtype(sce.patient1_HS, "keratinocyte", known_markers.kera, genes.kera)
+sce.patient1_SCC.kera <- cluster_subtype(sce.patient1_SCC, "keratinocyte", known_markers.kera, genes.kera)
+sce.patient2_HS.kera <- cluster_subtype(sce.patient2_HS, "keratinocyte", known_markers.kera, genes.kera)
+sce.patient2_AK.kera <- cluster_subtype(sce.patient2_AK, "keratinocyte", known_markers.kera, genes.kera)
 
-sce.patient1_HS.kera <- results[[1]]
-km.patient1_HS.kera <- results[[2]]
-
-#---
-
-results <- pseudobulk(sce.patient1_HS.kera, km.patient1_HS.kera)
-
-sce.patient1_HS.kera <- results[[1]]
-pb.patient1_HS.kera <- results[[2]]
-mat.patient1_HS.kera <- results[[3]]
-cl2.patient1_HS.kera <- results[[4]]
-
-
-#--- check if the markers we're defining the keratinocyte subpopulations are present in the cells
-# selecter by the keratinocyte cluster
-markers_kera_cluster <- rowData(sce.patient1_HS.kera)$Symbol
-markers_kera <- c("KRT5","KRT14","COL17A1","KRT1","KRT10","LOR", "SPINK5","KRT6B","GJB2","GJB6","ATP1B1","MGST1","FASN","DCD","AQP5")
-
-idx_notfound <- which(!(markers_kera %in% markers_kera_cluster))
-idx_found <- which(markers_kera %in% markers_kera_cluster)
-cat("Not found:", markers_kera[idx_notfound], "\n")
-cat("Found:", markers_kera[idx_found])
-
-print(paste("Done:", length(idx_found), "/", length(markers_kera), "markers found"))
 ```
 
 ```{r fibroblast}
-# select the cell labeled as keratinocytes in the previous step
-sce.patient1_HS.fibro <- sce.patient1_HS[,sce.patient1_HS$cluster2=="fibroblast"]
-
-#---- run the pipeline again on that subdataset
-# get rid of seldom detected genes
-sce.patient1_HS.fibro <- sce.patient1_HS.fibro[(rowSums(counts(sce.patient1_HS.fibro) > 0) > 4),]
-
-vst.patient1_HS.fibro <- suppressWarnings(sctransform::vst(counts(sce.patient1_HS.fibro)))
-
-logcounts(sce.patient1_HS.fibro, withDimnames=FALSE) <- vst.patient1_HS.fibro$y
-
-# get highly-variable genes
-hvg.patient1_HS.fibro <- row.names(sce.patient1_HS.fibro)[order(vst.patient1_HS.fibro$gene_attr$residual_variance, decreasing=TRUE)[1:2000]]
 
 known_markers.fibro <- c("SLPI","CTHRC1","MFAP5","TSPAN8","CCL19","APOE","CXCL2","CXCL3","EFEMP1","APCDD1","ID1","WIF1","COL18A1","PTGDS","ASPN","POSTN","GPC3","TNN","SFRP1")
 
-#which(rowData(sce.patient1_HS)$Symbol %in% known_markers) # only gives index of the first encountered
-known_genes.fibro <- rownames(sce.patient1_HS.fibro)[which(rowData(sce.patient1_HS.fibro)$Symbol %in% known_markers.fibro)]
-
-# Check that the genes we know are also part of the highly variable genes
-idx_notfound <- which(!(known_genes.fibro %in% hvg.patient1_HS.fibro))
-#known_markers[idx_notfound]
-# if some of the known markers were not selected, add them
-if (length(idx_notfound) > 0) {
-  print(paste("Adding", known_markers.fibro[idx_notfound], "to the gene set used for PCA on fibroblasts"))
-  hvg.patient1_HS.fibro <- c(hvg.patient1_HS.fibro, known_genes.fibro[idx_notfound])
-}
-
-#---- pca
-
-sce.patient1_HS.fibro <- runPCA(sce.patient1_HS.fibro, subset_row=hvg.patient1_HS.fibro)
-
-# check the variance explained by the PCs:
-pc.var.patient1_HS.fibro <- attr(reducedDim(sce.patient1_HS.fibro),"percentVar")
-plot(pc.var.patient1_HS.fibro, xlab="PCs", ylab="% variance explained")
-
-# restrict to the first 20 components:
-reducedDim(sce.patient1_HS.fibro) <- reducedDim(sce.patient1_HS.fibro)[,1:20]
-
-# run and plot 2d projections based on the PCA:
-sce.patient1_HS.fibro <- runTSNE(sce.patient1_HS.fibro, dimred="PCA")
-sce.patient1_HS.fibro <- runUMAP(sce.patient1_HS.fibro, dimred="PCA")
-
-#--- clustering
-
-g.patient1_HS.fibro <- buildKNNGraph(sce.patient1_HS.fibro, BNPARAM=AnnoyParam(), use.dimred="PCA", k=30)
-sce.patient1_HS.fibro$cluster <- as.factor(cluster_louvain(g.patient1_HS.fibro)$membership)
-
 genes.fibro <- list(
-  #fibroblast  = c("LUM","MMP2"),
-  # fibroblast subclassification  from: https://www.nature.com/articles/s42003-020-0922-4#
-  fibroblast_secretory_reticular = c("SLPI","CTHRC1","MFAP5","TSPAN8"),
-  fibroblast_proinflammatory = c("CCL19","APOE","CXCL2","CXCL3","EFEMP1"),
-  fibroblast_secretory_papillary = c("APCDD1","ID1","WIF1","COL18A1","PTGDS"),
-  fibroblast_mesenchymal = c("ASPN","POSTN","GPC3","TNN","SFRP1")
+   #fibroblast  = c("LUM","MMP2"),
+#   # fibroblast subclassification  from: https://www.nature.com/articles/s42003-020-0922-4#
+   fibroblast_secretory_reticular = c("SLPI","CTHRC1","MFAP5","TSPAN8"),
+   fibroblast_proinflammatory = c("CCL19","APOE","CXCL2","CXCL3","EFEMP1"),
+   fibroblast_secretory_papillary = c("APCDD1","ID1","WIF1","COL18A1","PTGDS"),
+   fibroblast_mesenchymal = c("ASPN","POSTN","GPC3","TNN","SFRP1")
 )
 
-km.patient1_HS.fibro <- lapply(genes.fibro, FUN=function(g.patient1_HS.fibro) grep(paste0(g.patient1_HS.fibro, "$", collapse="|"), rownames(sce.patient1_HS.fibro), value=TRUE))
-
-#---
-
-# mean logcounts by cluster:
-pb.patient1_HS.fibro <- aggregateData(sce.patient1_HS.fibro, "logcounts", by=c("cluster"), fun="mean")
-lengths(km.patient1_HS.fibro)
-h <- pheatmap(assay(pb.patient1_HS.fibro)[unlist(km.patient1_HS.fibro),], annotation_row=data.frame(row.names=unlist(km.patient1_HS.fibro), type=rep(names(km.patient1_HS.fibro), lengths(km.patient1_HS.fibro))), split=rep(names(km.patient1_HS.fibro), lengths(km.patient1_HS.fibro)), cluster_rows=FALSE, scale="row", main="Before markers aggregation", fontsize_row=6, fontsize_col=10)
-# problem occurs when scale="row" used
-h
-
-# we will assign clusters to the cell type whose markers are the most expressed
-# we extract the pseudo-bulk counts of the markers for each cluster
-mat.patient1_HS.fibro <- assay(pb.patient1_HS.fibro)[unlist(km.patient1_HS.fibro),]
-
-# we aggregate across markers of the same type
-mat.patient1_HS.fibro <- aggregate(t(scale(t(mat.patient1_HS.fibro))), by=list(type=rep(names(km.patient1_HS.fibro), lengths(km.patient1_HS.fibro))), FUN=sum)
-
-# for each column (cluster), we select the row (cell type) which has the maximum aggregated value
-cl2.patient1_HS.fibro <- mat.patient1_HS.fibro[,1][apply(mat.patient1_HS.fibro[,-1], 2, FUN=which.max)]
-
-# we convert the cells' cluster labels to cell type labels:
-sce.patient1_HS.fibro$cluster2 <- cl2.patient1_HS.fibro[sce.patient1_HS.fibro$cluster]
-
-# we aggregate again to pseudo-bulk using the new clusters
-pb.patient1_HS.fibro <- aggregateData(sce.patient1_HS.fibro, "logcounts", by=c("cluster2"), fun="mean")
-# we plot again the expression of the markers as a sanity check
-h1 <- pheatmap(assay(pb.patient1_HS.fibro)[unlist(km.patient1_HS.fibro),], annotation_row=data.frame(row.names=unlist(km.patient1_HS.fibro), type=rep(names(km.patient1_HS.fibro), lengths(km.patient1_HS.fibro))), split=rep(names(km.patient1_HS.fibro), lengths(km.patient1_HS.fibro)), cluster_rows=FALSE, scale="row", main="After markers aggregation", fontsize_row=6, fontsize_col=10)
-h1
-plotUMAP(sce.patient1_HS.fibro, colour_by="cluster2", text_by="cluster2", point_size=1)
-#plot_grid( plotTSNE(sce.patient1_HS.kera, colour_by="cluster", text_by="cluster"), plotUMAP(sce.patient1_HS.kera, colour_by="cluster", text_by="cluster") )
+sce.patient1_HS.fibro <- cluster_subtype(sce.patient1_HS, "fibroblast", known_markers.fibro, genes.fibro)
+#sce.patient1_SCC.fibro <- cluster_subtype(sce.patient1_SCC, "fibroblast", known_markers.fibro, genes.fibro)
+sce.patient2_HS.fibro <- cluster_subtype(sce.patient2_HS, "fibroblast", known_markers.fibro, genes.fibro)
+sce.patient2_AK.fibro <- cluster_subtype(sce.patient2_AK, "fibroblast", known_markers.fibro, genes.fibro)
 
 
-#--- check if the markers we're defining the fibroblast subpopulations are present in the cells
-# selected by the keratinocyte cluster
-markers_fibro_cluster <- rowData(sce.patient1_HS.fibro)$Symbol
-markers_fibro <- c("LUM","MMP2","SLPI","CTHRC1","MFAP5","TSPAN8","CCL19","APOE","CXCL2","CXCL3","EFEMP1","APCDD1","ID1","WIF1","COL18A1","PTGDS","ASPN","POSTN","GPC3","TNN","SFRP1")
-
-idx_notfound <- which(!(markers_fibro %in% markers_fibro_cluster))
-idx_found <- which(markers_fibro %in% markers_fibro_cluster)
-cat("Not found:", markers_fibro[idx_notfound], "\n")
-cat("Found:", markers_fibro[idx_found])
-
-print(paste("Done:", length(idx_found), "/", length(markers_fibro), "markers found"))
+# # select the cell labeled as keratinocytes in the previous step
+# sce.patient1_HS.fibro <- sce.patient1_HS[,sce.patient1_HS$cluster2=="fibroblast"]
+# 
+# #---- run the pipeline again on that subdataset
+# # get rid of seldom detected genes
+# sce.patient1_HS.fibro <- sce.patient1_HS.fibro[(rowSums(counts(sce.patient1_HS.fibro) > 0) > 4),]
+# 
+# vst.patient1_HS.fibro <- suppressWarnings(sctransform::vst(counts(sce.patient1_HS.fibro)))
+# 
+# logcounts(sce.patient1_HS.fibro, withDimnames=FALSE) <- vst.patient1_HS.fibro$y
+# 
+# # get highly-variable genes
+# hvg.patient1_HS.fibro <- row.names(sce.patient1_HS.fibro)[order(vst.patient1_HS.fibro$gene_attr$residual_variance, decreasing=TRUE)[1:2000]]
+# 
+# known_markers.fibro <- c("SLPI","CTHRC1","MFAP5","TSPAN8","CCL19","APOE","CXCL2","CXCL3","EFEMP1","APCDD1","ID1","WIF1","COL18A1","PTGDS","ASPN","POSTN","GPC3","TNN","SFRP1")
+# 
+# #which(rowData(sce.patient1_HS)$Symbol %in% known_markers) # only gives index of the first encountered
+# known_genes.fibro <- rownames(sce.patient1_HS.fibro)[which(rowData(sce.patient1_HS.fibro)$Symbol %in% known_markers.fibro)]
+# 
+# # Check that the genes we know are also part of the highly variable genes
+# idx_notfound <- which(!(known_genes.fibro %in% hvg.patient1_HS.fibro))
+# #known_markers[idx_notfound]
+# # if some of the known markers were not selected, add them
+# if (length(idx_notfound) > 0) {
+#   print(paste("Adding", known_markers.fibro[idx_notfound], "to the gene set used for PCA on fibroblasts"))
+#   hvg.patient1_HS.fibro <- c(hvg.patient1_HS.fibro, known_genes.fibro[idx_notfound])
+# }
+# 
+# #---- pca
+# 
+# sce.patient1_HS.fibro <- runPCA(sce.patient1_HS.fibro, subset_row=hvg.patient1_HS.fibro)
+# 
+# # check the variance explained by the PCs:
+# pc.var.patient1_HS.fibro <- attr(reducedDim(sce.patient1_HS.fibro),"percentVar")
+# plot(pc.var.patient1_HS.fibro, xlab="PCs", ylab="% variance explained")
+# 
+# # restrict to the first 20 components:
+# reducedDim(sce.patient1_HS.fibro) <- reducedDim(sce.patient1_HS.fibro)[,1:20]
+# 
+# # run and plot 2d projections based on the PCA:
+# sce.patient1_HS.fibro <- runTSNE(sce.patient1_HS.fibro, dimred="PCA")
+# sce.patient1_HS.fibro <- runUMAP(sce.patient1_HS.fibro, dimred="PCA")
+# 
+# #--- clustering
+# 
+# g.patient1_HS.fibro <- buildKNNGraph(sce.patient1_HS.fibro, BNPARAM=AnnoyParam(), use.dimred="PCA", k=30)
+# sce.patient1_HS.fibro$cluster <- as.factor(cluster_louvain(g.patient1_HS.fibro)$membership)
+# 
+# genes.fibro <- list(
+#   #fibroblast  = c("LUM","MMP2"),
+#   # fibroblast subclassification  from: https://www.nature.com/articles/s42003-020-0922-4#
+#   fibroblast_secretory_reticular = c("SLPI","CTHRC1","MFAP5","TSPAN8"),
+#   fibroblast_proinflammatory = c("CCL19","APOE","CXCL2","CXCL3","EFEMP1"),
+#   fibroblast_secretory_papillary = c("APCDD1","ID1","WIF1","COL18A1","PTGDS"),
+#   fibroblast_mesenchymal = c("ASPN","POSTN","GPC3","TNN","SFRP1")
+# )
+# 
+# km.patient1_HS.fibro <- lapply(genes.fibro, FUN=function(g.patient1_HS.fibro) grep(paste0(g.patient1_HS.fibro, "$", collapse="|"), rownames(sce.patient1_HS.fibro), value=TRUE))
+# 
+# #---
+# 
+# # mean logcounts by cluster:
+# pb.patient1_HS.fibro <- aggregateData(sce.patient1_HS.fibro, "logcounts", by=c("cluster"), fun="mean")
+# lengths(km.patient1_HS.fibro)
+# h <- pheatmap(assay(pb.patient1_HS.fibro)[unlist(km.patient1_HS.fibro),], annotation_row=data.frame(row.names=unlist(km.patient1_HS.fibro), type=rep(names(km.patient1_HS.fibro), lengths(km.patient1_HS.fibro))), split=rep(names(km.patient1_HS.fibro), lengths(km.patient1_HS.fibro)), cluster_rows=FALSE, scale="row", main="Before markers aggregation", fontsize_row=6, fontsize_col=10)
+# # problem occurs when scale="row" used
+# h
+# 
+# # we will assign clusters to the cell type whose markers are the most expressed
+# # we extract the pseudo-bulk counts of the markers for each cluster
+# mat.patient1_HS.fibro <- assay(pb.patient1_HS.fibro)[unlist(km.patient1_HS.fibro),]
+# 
+# # we aggregate across markers of the same type
+# mat.patient1_HS.fibro <- aggregate(t(scale(t(mat.patient1_HS.fibro))), by=list(type=rep(names(km.patient1_HS.fibro), lengths(km.patient1_HS.fibro))), FUN=sum)
+# 
+# # for each column (cluster), we select the row (cell type) which has the maximum aggregated value
+# cl2.patient1_HS.fibro <- mat.patient1_HS.fibro[,1][apply(mat.patient1_HS.fibro[,-1], 2, FUN=which.max)]
+# 
+# # we convert the cells' cluster labels to cell type labels:
+# sce.patient1_HS.fibro$cluster2 <- cl2.patient1_HS.fibro[sce.patient1_HS.fibro$cluster]
+# 
+# # we aggregate again to pseudo-bulk using the new clusters
+# pb.patient1_HS.fibro <- aggregateData(sce.patient1_HS.fibro, "logcounts", by=c("cluster2"), fun="mean")
+# # we plot again the expression of the markers as a sanity check
+# h1 <- pheatmap(assay(pb.patient1_HS.fibro)[unlist(km.patient1_HS.fibro),], annotation_row=data.frame(row.names=unlist(km.patient1_HS.fibro), type=rep(names(km.patient1_HS.fibro), lengths(km.patient1_HS.fibro))), split=rep(names(km.patient1_HS.fibro), lengths(km.patient1_HS.fibro)), cluster_rows=FALSE, scale="row", main="After markers aggregation", fontsize_row=6, fontsize_col=10)
+# h1
+# plotUMAP(sce.patient1_HS.fibro, colour_by="cluster2", text_by="cluster2", point_size=1)
+# #plot_grid( plotTSNE(sce.patient1_HS.kera, colour_by="cluster", text_by="cluster"), plotUMAP(sce.patient1_HS.kera, colour_by="cluster", text_by="cluster") )
+# 
+# 
+# #--- check if the markers we're defining the fibroblast subpopulations are present in the cells
+# # selected by the keratinocyte cluster
+# markers_fibro_cluster <- rowData(sce.patient1_HS.fibro)$Symbol
+# markers_fibro <- c("LUM","MMP2","SLPI","CTHRC1","MFAP5","TSPAN8","CCL19","APOE","CXCL2","CXCL3","EFEMP1","APCDD1","ID1","WIF1","COL18A1","PTGDS","ASPN","POSTN","GPC3","TNN","SFRP1")
+# 
+# idx_notfound <- which(!(markers_fibro %in% markers_fibro_cluster))
+# idx_found <- which(markers_fibro %in% markers_fibro_cluster)
+# cat("Not found:", markers_fibro[idx_notfound], "\n")
+# cat("Found:", markers_fibro[idx_found])
+# 
+# print(paste("Done:", length(idx_found), "/", length(markers_fibro), "markers found"))
 ```
 
 ```{r check_markers, eval=FALSE}
