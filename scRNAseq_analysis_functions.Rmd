@@ -282,7 +282,10 @@ genes <- list(
   #fibroblast_secretory_papillary = c("APCDD1","ID1","WIF1","COL18A1","PTGDS"),
   #fibroblast_mesenchymal = c("ASPN","POSTN","GPC3","TNN","SFRP1"),
   # PERICYTE & vSMC
-  pericytevSMC  = c("ACTA2","TAGLN"), #vSMC : vascular smooth muscel cell
+  
+  #pericytevSMC  = c("ACTA2","TAGLN"), #vSMC : vascular smooth muscel cell
+  
+  
   #pericytevSMC_pericyte  = c("RGS5"),
   #pericytevSMC_vSMC  = c("MYL9","TPM2","RERGL"),
   # ENDOTHELIAL CELL
@@ -500,7 +503,7 @@ genes.fibro <- list(
 )
 
 sce.patient1_HS.fibro <- cluster_subtype(sce.patient1_HS, "fibroblast", known_markers.fibro, genes.fibro)
-#sce.patient1_SCC.fibro <- cluster_subtype(sce.patient1_SCC, "fibroblast", known_markers.fibro, genes.fibro)
+sce.patient1_SCC.fibro <- cluster_subtype(sce.patient1_SCC, "fibroblast", known_markers.fibro, genes.fibro)
 sce.patient2_HS.fibro <- cluster_subtype(sce.patient2_HS, "fibroblast", known_markers.fibro, genes.fibro)
 sce.patient2_AK.fibro <- cluster_subtype(sce.patient2_AK, "fibroblast", known_markers.fibro, genes.fibro)
 
