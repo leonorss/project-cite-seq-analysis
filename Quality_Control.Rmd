@@ -1,0 +1,187 @@
+---
+title: "QualityControl"
+author: "Leonor Schubert"
+date: "4 1 2021"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+
+```{r libraries, message=FALSE}
+library('SingleCellExperiment')
+library('DropletUtils')
+library('scater')
+library('scDblFinder')
+#library('scuttle')
+# scater, scran, uwot
+
+```
+
+
+```{r qualityControlFunction}
+processCellRangerOutput <- function(patientName, emptyDropsIterations, save, returnSCE) {
+
+  ### readData
+  # set local path
+  local.path <- getwd()
+  setwd(local.path)
+  path <- file.path("data", patientName)
+  
+  # read in unfiltered data
+  fname <- file.path(path, "outs/raw_feature_bc_matrix")
+  sce <- read10xCounts(fname, col.names=TRUE)
+  
+  # rename genes
+  rownames(sce) <- uniquifyFeatureNames(rowData(sce)$ID,  rowData(sce)$Symbol)
+  
+  # put antibody data in seperate summarizedExperiment inside our singleCellExperiment
+  sce <- splitAltExps(sce, rowData(sce)$Type)
+  # altExp(sce)
+  
+  # from sparse to normal matrix for downstream analysis
+  counts(altExp(sce)) <- as.matrix(counts(altExp(sce)))
+
+
+
+  ### Quality Contro Antibodies
+  # remove cells that have failed to capture/sequence antibodies, remove cells that have unusually low numbers antibodies (less than or equal to half of the total number of tags)
+  df.ab <- perCellQCMetrics(altExp(sce))
+  
+  # exclude antibodies with zero counts across all cells
+  number.nonzero <- sum(!rowAlls(counts(altExp(sce)), value=0L))
+  #discard.ab. <- df.ab.$detected <= number.nonzero./2 -> to stringent use 25 as a threshold
+  discard.ab <- df.ab$detected <= 25
+  
+  print("Summary of discarded antibodies:")
+  summary(discard.ab)
+  
+  # distribution of the number of detected antibodies across all cells, redline=threshold, below cells are discarded (looks like almost all?)
+  print("Distribution of the number of detected antibodies across all cells (red line = threshold, below which cells would be discarded):")
+  hist(df.ab$detected, col='grey', main=paste0(patientName, ": Number of detected antibodies across all cells"), xlab="Number of detected Antibody-tags")
+  #abline(v=number.nonzero./2, col="red", lty=2)
+  abline(v=25, col="red", lty=2)
+  
+  
+  ## Should we really discard all these cells (668'282), would only keep 68'998?
+  ## I wouldn't think so, but in the pipeline in the bioconductor this is what would be done...
+
+
+  ### Quality Control empty Droplets
+  # using emptyDrops
+  set.seed(11)
+  
+  # use emptyDrops algorithm to predict which cells are probably empty
+  ## 1SCC = 100000, 1HS = 10000, 2HS = 50000, 2AK = 100000
+  e.out <- emptyDrops(counts(sce), niters = emptyDropsIterations, test.ambient=TRUE)
+  
+  # look at sum summary statistics (non-significant & limited field should be 0, otherwise ran emptyDrops again with higher niters)
+  print("Summaries of FDR smaller than 0.001 of the output of the empty Droplets algorithm:")
+  summary(e.out$FDR <= 0.001)
+  table(Sig=e.out$FDR <= 0.001, Limited=e.out$Limited)
+  
+  # should have an approx. uniform distribution, especially at the beginning (if high peaks there, decrease lower in emptyDrops)
+  print("Histogram showing the P-values of the output of the empty Droplets algorithm: ")
+  hist(e.out$PValue[e.out$Total <= 100 & e.out$Total > 0],
+      xlab="P-value", main=paste0(patientName, ": P-values calculated by emptyDroplets"), col="grey80")
+  
+  # subset sce
+  sce <- sce[, which(e.out$FDR <= 0.001)]
+
+
+  ### Quality Control Doublets
+  # compute score for each each cell reperesenting how likely it is a doublet
+  sce <- scDblFinder(sce)
+  
+  print("Summary of the doublets identified by the scDblFinder algorithm:")
+  table(sce$scDblFinder.class)
+  
+  # removing doublets
+  sce <- sce[, sce$scDblFinder.class!="doublet"]
+
+
+  ### Quality Control dead Cells
+  # discard dead cells by looking at where there's high percentage of mitochondrial RNA
+  mito <- grep("^MT-", rowData(sce)$Symbol)
+  df.mito <- perCellQCMetrics(sce, subsets=list(Mito=mito))
+  discard.mito <- isOutlier(df.mito$subsets_Mito_percent, type="higher")
+  
+  # looks like quite a lot of cells (416 out of 2415) ?
+  print("Summary of the cells identified as dead cells:")
+  summary(discard.mito)
+  
+  # plot cells which are dismissed bc. of high mitochondrial expression, don't want to dismiss any in the upper right corner, which are high quality cells
+  # a lot of cells with medium total count are getting discarded...?
+  print("Plot of cells, which will be discarded because they are identified as dead cells:")
+  plot(df.mito$sum, df.mito$subsets_Mito_percent, log="x", main=paste0(patientName, ": Percentage of Mitochondrial expression"),
+      xlab="Total count", ylab='Mitochondrial %') 
+  abline(h=attr(discard.mito, "thresholds")["higher"], col="red")
+  
+
+  ### Quality Control Outliers
+  # compute outliers bc. of low library sizes and detection rates
+  qc.lib2 <- isOutlier(df.mito$sum, log=TRUE, type="lower")
+  qc.nexprs2 <- isOutlier(df.mito$detected, log=TRUE, type="lower")
+  
+  # discard all low quality cells (not including antibody quality assesment since otherwise almost all cells would be discarded)
+  discard <- qc.lib2 | qc.nexprs2 | discard.mito
+  
+  # overviews of discarded cells
+  # 450 a lot of cells?
+  print("Summary of all cells that will be discarded and for what reasons:")
+  DataFrame(LibSize=sum(qc.lib2), NExprs=sum(qc.nexprs2), MitoProp=sum(discard.mito), Total=sum(discard))
+  
+  # plotting of the above metrics, should have almost no tail, bc. these are the outliers we want to get rid of
+  print("Plots looking at some quality metrics calculated by perCellQCMetrics:")
+  qc <- as.data.frame((df.mito))
+  # don't want tail on right side
+  ggplot(qc, aes(subsets_Mito_percent)) + geom_histogram() + ggtitle(paste0(patientName, ": Percentage of Mitochondrial gene expression")) 
+  # don't want tail on left side
+  ggplot(qc, aes(log10(sum))) + geom_histogram() + ggtitle(paste0(patientName, ": Log10 sum of counts")) 
+  # number of reads should correlate with the number of genes detected??
+  ggplot(qc, aes(log10(sum), log10(detected))) + geom_point() + geom_density2d() + ggtitle(paste0(patientName, ": Log10 sum of counts vs. log10 detected genes")) 
+
+
+
+  ### check Quality Control
+  # check that an entire cell type is not inadvertently discarded
+  lost <- calculateAverage(counts(sce)[, !discard])
+  kept <- calculateAverage(counts(sce)[, discard])
+  
+  logged <- cpm(cbind(lost, kept), log=TRUE, prior.count=2)
+  logFC <- logged[, 1] - logged[, 2]
+  abundance <- rowMeans(logged)
+  
+  print("Check that we don't accidently get rid of small cell populations because of our cleaning of the data:")
+  plot(abundance, logFC, xlab="Average count", ylab="Log-FC (lost/kept)", pch=16, main=paste0(patientName, ": Check Quality Control"))
+
+
+  ### discard Low Quality Cells
+  sce <- sce[, !discard]
+
+
+  ### save SCE
+  if (isTRUE(save)) {
+    
+    # if directory clean_data doesn't exist, create it
+    ifelse(!dir.exists(file.path(.path, "clean_data")), test=dir.create(file.path(.path, "clean_data")), FALSE)
+    
+    # filename of sce 
+    filename <- file.path(.path, "clean_data", paste0(patientName,"_cleanData_sceRDS"))
+    
+    # if filename doesn't exist already, create it and sace sce
+    if (isFALSE(overwrite) & file.exists(filename)) {
+      warning("File already exists! Skip writting file ", filename)
+    } else {
+      saveRDS(sce, file=filename)
+    }
+  }
+
+  if (isTRUE(returnSCE)){
+    return(sce)
+  }
+  
+}
+```
