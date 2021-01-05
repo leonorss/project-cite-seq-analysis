@@ -49,7 +49,7 @@ processCellRangerOutput <- function(patientName, emptyDropsIterations, save, ret
   print(patientName)
 
   # get original number of cells
-  nCells.original <- ncol(counts(sce))
+  nCells.original <- dim(sce)
   
   ### Quality Control Antibodies
   # remove cells that have failed to capture/sequence antibodies, remove cells that have unusually low numbers antibodies (less than or equal to half of the total number of tags)
@@ -79,7 +79,7 @@ processCellRangerOutput <- function(patientName, emptyDropsIterations, save, ret
   set.seed(11)
   
   # use emptyDrops algorithm to predict which cells are probably empty
-  ## 1SCC = 100000, 1HS = 10000, 2HS = 50000, 2AK = 100000
+  ## 1SCC = 100000, 1HS = 100000, 2HS = 50000, 2AK = 100000
   e.out <- emptyDrops(counts(sce), niters = emptyDropsIterations, test.ambient=TRUE)
   
   # look at sum summary statistics (non-significant & limited field should be 0, otherwise ran emptyDrops again with higher niters)
@@ -94,6 +94,7 @@ processCellRangerOutput <- function(patientName, emptyDropsIterations, save, ret
   
   # subset sce
   sce <- sce[, which(e.out$FDR <= 0.001)]
+  
 
   ### Quality Control dead Cells
   # discard dead cells by looking at where there's high percentage of mitochondrial RNA
@@ -166,13 +167,11 @@ processCellRangerOutput <- function(patientName, emptyDropsIterations, save, ret
   sce <- sce[, sce$scDblFinder.class!="doublet"]
 
   # how many cells remain
-  nCells.cleaned <- ncol(counts(sce))
-  
+  nCells.cleaned <- dim(sce)
+    
   # compute percentage of removed cells
   print("Percentage of removed cells:")
-  print(nCells.original)
-  print(nCells.cleaned)
-  print((nCells.original-nCells.cleaned) / nCells.original * 100)
+  print((nCells.original[2]-nCells.cleaned[2]) / nCells.original[2] * 100)
   
   ### save SCE
   if (isTRUE(save)) {
@@ -197,4 +196,5 @@ processCellRangerOutput <- function(patientName, emptyDropsIterations, save, ret
 
 ```{r test}
 processCellRangerOutput("patient1_HS", 100000, TRUE, FALSE)
+
 ```
