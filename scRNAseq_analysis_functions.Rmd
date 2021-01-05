@@ -460,7 +460,8 @@ cluster_subtype <- function(sceo, cell_type, known_markers, subtype_markers) {
   cat("Found:", markers_kera[idx_found])
   
   print(paste("Done:", length(idx_found), "/", length(markers_kera), "markers found"))
-    
+  
+  return(sceo.kera)
     
   
 }
@@ -486,6 +487,69 @@ sce.patient1_HS.kera <- cluster_subtype(sce.patient1_HS, "keratinocyte", known_m
 sce.patient1_SCC.kera <- cluster_subtype(sce.patient1_SCC, "keratinocyte", known_markers.kera, genes.kera)
 sce.patient2_HS.kera <- cluster_subtype(sce.patient2_HS, "keratinocyte", known_markers.kera, genes.kera)
 sce.patient2_AK.kera <- cluster_subtype(sce.patient2_AK, "keratinocyte", known_markers.kera, genes.kera)
+
+```
+
+```{r kera_dyn}
+# need the previous block to be runned (at least until l. 298)
+
+genes.dyn <- list(
+  # classification: https://www.sciencedirect.com/science/article/pii/S0092867420306723
+  keratinocyte_basal = "COL17A1",
+  keratinocyte_cycling = "MKI67",
+  keratinocyte_differentiating = "KRT1"
+  )
+
+dynamic_plot <- function(sceo, go, genes) {
+    kmo <- lapply(genes, FUN=function(go) grep(paste0(go, "$", collapse="|"), rownames(sceo), value=TRUE))
+  
+  # mean logcounts by cluster:
+  pbo <- aggregateData(sceo, "logcounts", by=c("cluster"), fun="mean")
+  lengths(kmo)
+  h <- pheatmap(assay(pbo)[unlist(kmo),], annotation_row=data.frame(row.names=unlist(kmo), type=rep(names(kmo), lengths(kmo))), split=rep(names(kmo), lengths(kmo)), cluster_rows=FALSE, scale="row", main="Before markers aggregation", fontsize_row=6, fontsize_col=10)
+  h
+  
+  # we will assign clusters to the cell type whose markers are the most expressed
+  # we extract the pseudo-bulk counts of the markers for each cluster
+  mato <- assay(pbo)[unlist(kmo),]
+  
+  # we aggregate across markers of the same type
+  mato <- aggregate(t(scale(t(mato))), by=list(type=rep(names(kmo), lengths(kmo))), FUN=sum)
+  
+  # for each column (cluster), we select the row (cell type) which has the maximum aggregated value
+  cl3o <- mato[,1][apply(mato[,-1], 2, FUN=which.max)]
+  
+  # we convert the cells' cluster labels to cell type labels:
+  sceo$cluster3 <- cl3o[sceo$cluster]
+  
+  print(sceo)
+  
+  # we aggregate again to pseudo-bulk using the new clusters
+  pbo <- aggregateData(sceo, "logcounts", by=c("cluster3"), fun="mean")
+  # we plot again the expression of the markers as a sanity check
+  h1 <- pheatmap(assay(pbo)[unlist(kmo),], annotation_row=data.frame(row.names=unlist(kmo), type=rep(names(kmo), lengths(kmo))), split=rep(names(kmo), lengths(kmo)), cluster_rows=FALSE, scale="row", main="After markers aggregation", fontsize_row=6, fontsize_col=10) #, scale="row", main="After markers aggregation", fontsize_row=6, fontsize_col=10)
+  h1
+  plotUMAP(sceo, colour_by="cluster3", text_by="cluster3", point_size=1)
+  
+  
+  #---- Histograms
+  total <- ncol(sceo)
+  basal <- ncol(sceo[,sceo$cluster3=="keratinocyte_basal"])
+  cycling <- ncol(sceo[,sceo$cluster3=="keratinocyte_cycling"])
+  diff <- ncol(sceo[,sceo$cluster3=="keratinocyte_differentiating"])
+  counts <- c(basal, cycling, diff)
+  percentage <- counts/total
+  kera.dyn <- data.frame(names=c("Basal", "Cycling", "Differentiating"), percentage=percentage)
+  kera.dyn
+  
+  p <- ggplot(data=kera.dyn, aes(x=names, y=percentage, fill=names)) + geom_bar(stat="identity") + labs(title="Proportion of Keratinocyte subtypes",x="Subtypes", y="Percentage")
+  print(p)
+  
+}
+
+dynamic_plot(sce.patient1_HS.kera, g.patient1_HS.kera, genes.dyn)
+dynamic_plot(sce.patient1_SCC.kera, g.patient1_SCC.kera, genes.dyn)
+
 
 ```
 
