@@ -317,7 +317,6 @@ km.patient1_HS.kera <- lapply(genes.kera, FUN=function(g.patient1_HS.kera) grep(
 pb.patient1_HS.kera <- aggregateData(sce.patient1_HS.kera, "logcounts", by=c("cluster"), fun="mean")
 lengths(km.patient1_HS.kera)
 h <- pheatmap(assay(pb.patient1_HS.kera)[unlist(km.patient1_HS.kera),], annotation_row=data.frame(row.names=unlist(km.patient1_HS.kera), type=rep(names(km.patient1_HS.kera), lengths(km.patient1_HS.kera))), split=rep(names(km.patient1_HS.kera), lengths(km.patient1_HS.kera)), cluster_rows=FALSE, scale="row", main="Before markers aggregation", fontsize_row=6, fontsize_col=10)
-# problem occurs when scale="row" used
 h
 
 # we will assign clusters to the cell type whose markers are the most expressed
@@ -354,6 +353,58 @@ cat("Found:", markers_kera[idx_found])
 
 print(paste("Done:", length(idx_found), "/", length(markers_kera), "markers found"))
 ```
+
+```{r kera_dyn}
+# need the previous block to be runned (at least until l. 298)
+
+genes.dyn <- list(
+  # classification: https://www.sciencedirect.com/science/article/pii/S0092867420306723
+  keratinocyte_basal = "COL17A1",
+  keratinocyte_cycling = "MKI67",
+  keratinocyte_differentiating = "KRT1"
+  )
+
+km.patient1_HS.dyn <- lapply(genes.dyn, FUN=function(g.patient1_HS.kera) grep(paste0(g.patient1_HS.kera, "$", collapse="|"), rownames(sce.patient1_HS.kera), value=TRUE))
+
+# mean logcounts by cluster:
+pb.patient1_HS.dyn <- aggregateData(sce.patient1_HS.kera, "logcounts", by=c("cluster"), fun="mean")
+lengths(km.patient1_HS.dyn)
+h <- pheatmap(assay(pb.patient1_HS.dyn)[unlist(km.patient1_HS.dyn),], annotation_row=data.frame(row.names=unlist(km.patient1_HS.dyn), type=rep(names(km.patient1_HS.dyn), lengths(km.patient1_HS.dyn))), split=rep(names(km.patient1_HS.dyn), lengths(km.patient1_HS.dyn)), cluster_rows=FALSE, scale="row", main="Before markers aggregation", fontsize_row=6, fontsize_col=10)
+h
+
+# we will assign clusters to the cell type whose markers are the most expressed
+# we extract the pseudo-bulk counts of the markers for each cluster
+mat.patient1_HS.dyn <- assay(pb.patient1_HS.dyn)[unlist(km.patient1_HS.dyn),]
+
+# we aggregate across markers of the same type
+mat.patient1_HS.dyn <- aggregate(t(scale(t(mat.patient1_HS.dyn))), by=list(type=rep(names(km.patient1_HS.dyn), lengths(km.patient1_HS.dyn))), FUN=sum)
+
+# for each column (cluster), we select the row (cell type) which has the maximum aggregated value
+cl3.patient1_HS.dyn <- mat.patient1_HS.dyn[,1][apply(mat.patient1_HS.dyn[,-1], 2, FUN=which.max)]
+
+# we convert the cells' cluster labels to cell type labels:
+sce.patient1_HS.kera$cluster3 <- cl3.patient1_HS.dyn[sce.patient1_HS.kera$cluster]
+
+# we aggregate again to pseudo-bulk using the new clusters
+pb.patient1_HS.dyn <- aggregateData(sce.patient1_HS.kera, "logcounts", by=c("cluster3"), fun="mean")
+# we plot again the expression of the markers as a sanity check
+h1 <- pheatmap(assay(pb.patient1_HS.dyn)[unlist(km.patient1_HS.dyn),], annotation_row=data.frame(row.names=unlist(km.patient1_HS.dyn), type=rep(names(km.patient1_HS.dyn), lengths(km.patient1_HS.dyn))), split=rep(names(km.patient1_HS.dyn), lengths(km.patient1_HS.dyn)), cluster_rows=FALSE, scale="row", main="After markers aggregation", fontsize_row=6, fontsize_col=10) #, scale="row", main="After markers aggregation", fontsize_row=6, fontsize_col=10)
+h1
+plotUMAP(sce.patient1_HS.kera, colour_by="cluster3", text_by="cluster3", point_size=1)
+
+#---- Histograms
+total <- ncol(sce.patient1_HS.kera)
+basal <- ncol(sce.patient1_HS.kera[,sce.patient1_HS.kera$cluster3=="keratinocyte_basal"])
+cycling <- ncol(sce.patient1_HS.kera[,sce.patient1_HS.kera$cluster3=="keratinocyte_cycling"])
+diff <- ncol(sce.patient1_HS.kera[,sce.patient1_HS.kera$cluster3=="keratinocyte_differentiating"])
+counts <- c(basal, cycling, diff)
+percentage <- counts/total
+kera.dyn <- data.frame(names=c("Basal", "Cycling", "Differentiating"), percentage=percentage)
+kera.dyn
+
+ggplot(data=kera.dyn, aes(x=names, y=percentage, fill=names)) + geom_bar(stat="identity") + labs(title="Proportion of Keratinocyte subtypes",x="Subtypes", y="Percentage")
+```
+
 
 ```{r fibroblast}
 # select the cell labeled as keratinocytes in the previous step

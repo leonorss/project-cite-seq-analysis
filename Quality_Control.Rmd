@@ -44,9 +44,14 @@ processCellRangerOutput <- function(patientName, emptyDropsIterations, save, ret
   # from sparse to normal matrix for downstream analysis
   counts(altExp(sce)) <- as.matrix(counts(altExp(sce)))
 
+  print("###################################")
+  print("Quality Control:")
+  print(patientName)
 
-
-  ### Quality Contro Antibodies
+  # get original number of cells
+  nCells.original <- ncol(counts(sce))
+  
+  ### Quality Control Antibodies
   # remove cells that have failed to capture/sequence antibodies, remove cells that have unusually low numbers antibodies (less than or equal to half of the total number of tags)
   df.ab <- perCellQCMetrics(altExp(sce))
   
@@ -56,7 +61,7 @@ processCellRangerOutput <- function(patientName, emptyDropsIterations, save, ret
   discard.ab <- df.ab$detected <= 25
   
   print("Summary of discarded antibodies:")
-  summary(discard.ab)
+  print(summary(discard.ab))
   
   # distribution of the number of detected antibodies across all cells, redline=threshold, below cells are discarded (looks like almost all?)
   print("Distribution of the number of detected antibodies across all cells (red line = threshold, below which cells would be discarded):")
@@ -65,7 +70,7 @@ processCellRangerOutput <- function(patientName, emptyDropsIterations, save, ret
   abline(v=25, col="red", lty=2)
   
   
-  ## Should we really discard all these cells (668'282), would only keep 68'998?
+  ## Should we really discard all these cells (eg. 668'282), would only keep eg. 68'998?
   ## I wouldn't think so, but in the pipeline in the bioconductor this is what would be done...
 
 
@@ -79,8 +84,8 @@ processCellRangerOutput <- function(patientName, emptyDropsIterations, save, ret
   
   # look at sum summary statistics (non-significant & limited field should be 0, otherwise ran emptyDrops again with higher niters)
   print("Summaries of FDR smaller than 0.001 of the output of the empty Droplets algorithm:")
-  summary(e.out$FDR <= 0.001)
-  table(Sig=e.out$FDR <= 0.001, Limited=e.out$Limited)
+  print(summary(e.out$FDR <= 0.001))
+  print(table(Sig=e.out$FDR <= 0.001, Limited=e.out$Limited))
   
   # should have an approx. uniform distribution, especially at the beginning (if high peaks there, decrease lower in emptyDrops)
   print("Histogram showing the P-values of the output of the empty Droplets algorithm: ")
@@ -90,18 +95,6 @@ processCellRangerOutput <- function(patientName, emptyDropsIterations, save, ret
   # subset sce
   sce <- sce[, which(e.out$FDR <= 0.001)]
 
-
-  ### Quality Control Doublets
-  # compute score for each each cell reperesenting how likely it is a doublet
-  sce <- scDblFinder(sce)
-  
-  print("Summary of the doublets identified by the scDblFinder algorithm:")
-  table(sce$scDblFinder.class)
-  
-  # removing doublets
-  sce <- sce[, sce$scDblFinder.class!="doublet"]
-
-
   ### Quality Control dead Cells
   # discard dead cells by looking at where there's high percentage of mitochondrial RNA
   mito <- grep("^MT-", rowData(sce)$Symbol)
@@ -110,7 +103,7 @@ processCellRangerOutput <- function(patientName, emptyDropsIterations, save, ret
   
   # looks like quite a lot of cells (416 out of 2415) ?
   print("Summary of the cells identified as dead cells:")
-  summary(discard.mito)
+  print(summary(discard.mito))
   
   # plot cells which are dismissed bc. of high mitochondrial expression, don't want to dismiss any in the upper right corner, which are high quality cells
   # a lot of cells with medium total count are getting discarded...?
@@ -131,7 +124,7 @@ processCellRangerOutput <- function(patientName, emptyDropsIterations, save, ret
   # overviews of discarded cells
   # 450 a lot of cells?
   print("Summary of all cells that will be discarded and for what reasons:")
-  DataFrame(LibSize=sum(qc.lib2), NExprs=sum(qc.nexprs2), MitoProp=sum(discard.mito), Total=sum(discard))
+  print(DataFrame(LibSize=sum(qc.lib2), NExprs=sum(qc.nexprs2), MitoProp=sum(discard.mito), Total=sum(discard)))
   
   # plotting of the above metrics, should have almost no tail, bc. these are the outliers we want to get rid of
   print("Plots looking at some quality metrics calculated by perCellQCMetrics:")
@@ -144,13 +137,12 @@ processCellRangerOutput <- function(patientName, emptyDropsIterations, save, ret
   ggplot(qc, aes(log10(sum), log10(detected))) + geom_point() + geom_density2d() + ggtitle(paste0(patientName, ": Log10 sum of counts vs. log10 detected genes")) 
 
 
-
   ### check Quality Control
   # check that an entire cell type is not inadvertently discarded
   lost <- calculateAverage(counts(sce)[, !discard])
   kept <- calculateAverage(counts(sce)[, discard])
   
-  logged <- cpm(cbind(lost, kept), log=TRUE, prior.count=2)
+  logged <- edgeR::cpm(cbind(lost, kept), log=TRUE, prior.count=2)
   logFC <- logged[, 1] - logged[, 2]
   abundance <- rowMeans(logged)
   
@@ -161,22 +153,39 @@ processCellRangerOutput <- function(patientName, emptyDropsIterations, save, ret
   ### discard Low Quality Cells
   sce <- sce[, !discard]
 
+  
+  ### Quality Control Doublets
+  # compute score for each each cell reperesenting how likely it is a doublet
+  
+  sce <- scDblFinder(sce)
+  
+  print("Summary of the doublets identified by the scDblFinder algorithm:")
+  print(table(sce$scDblFinder.class))
+  
+  # removing doublets
+  sce <- sce[, sce$scDblFinder.class!="doublet"]
 
+  # how many cells remain
+  nCells.cleaned <- ncol(counts(sce))
+  
+  # compute percentage of removed cells
+  print("Percentage of removed cells:")
+  print(nCells.original)
+  print(nCells.cleaned)
+  print((nCells.original-nCells.cleaned) / nCells.original * 100)
+  
   ### save SCE
   if (isTRUE(save)) {
     
     # if directory clean_data doesn't exist, create it
-    ifelse(!dir.exists(file.path(.path, "clean_data")), test=dir.create(file.path(.path, "clean_data")), FALSE)
+    ifelse(!dir.exists(file.path(path, "clean_data")), test=dir.create(file.path(path, "clean_data")), FALSE)
     
     # filename of sce 
-    filename <- file.path(.path, "clean_data", paste0(patientName,"_cleanData_sceRDS"))
+    filename <- file.path(path, "clean_data", paste0(patientName,"_cleanData_sceRDS"))
     
     # if filename doesn't exist already, create it and sace sce
-    if (isFALSE(overwrite) & file.exists(filename)) {
-      warning("File already exists! Skip writting file ", filename)
-    } else {
-      saveRDS(sce, file=filename)
-    }
+    saveRDS(sce, file=filename)
+    
   }
 
   if (isTRUE(returnSCE)){
@@ -184,4 +193,8 @@ processCellRangerOutput <- function(patientName, emptyDropsIterations, save, ret
   }
   
 }
+```
+
+```{r test}
+processCellRangerOutput("patient1_HS", 100000, TRUE, FALSE)
 ```
