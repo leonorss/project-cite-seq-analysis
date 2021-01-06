@@ -53,10 +53,18 @@ patient2_AK.path <- file.path("data", "patient2_AK")
 
 
 
+
+#read 10X data
 # read in filtered data and create list of SingleCellExperiment objects
 paths <- list(patient1_HS.path, patient1_SCC.path, patient2_HS.path, patient2_AK.path)
-sces <- lapply(paths, function(i) read10xCounts(file.path(i, "outs/filtered_feature_bc_matrix"), col.names = TRUE))
+#sces <- lapply(paths, function(i) read10xCounts(file.path(i, "outs/filtered_feature_bc_matrix"), col.names = TRUE))
 
+#read our own data
+sces <- list()
+sces[[1]] <- readRDS('clean_data/patient1_HS_cleanData_sce.RDS')
+sces[[2]] <- readRDS('clean_data/patient1_SCC_cleanData_sce.RDS')
+sces[[3]] <- readRDS('clean_data/patient2_HS_cleanData_sce.RDS')
+sces[[4]] <- readRDS('clean_data/patient2_AK_cleanData_sce.RDS')
 
 
 ```
