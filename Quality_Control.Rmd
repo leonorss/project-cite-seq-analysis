@@ -86,7 +86,7 @@ processCellRangerOutput <- function(patientName, emptyDropsIterations, save, ret
     
     # use emptyDrops algorithm to predict which cells are probably empty
     ## 1SCC = 100000, 1HS = 100000, 2HS = 50000, 2AK = 100000
-    e.out <- emptyDrops(counts(sce), niters = emptyDropsIterations, test.ambient=TRUE)
+    e.out <- emptyDrops(counts(sce), niters = emptyDropsIterations, test.ambient=TRUE, BPPARAM=MulticoreParam(4))
     
     # look at sum summary statistics (non-significant & limited field should be 0, otherwise ran emptyDrops again with higher niters)
     print("Summaries of FDR smaller than 0.001 of the output of the empty Droplets algorithm:")
@@ -183,10 +183,15 @@ processCellRangerOutput <- function(patientName, emptyDropsIterations, save, ret
   if (isTRUE(save)) {
     
     # if directory clean_data doesn't exist, create it
-    ifelse(!dir.exists(file.path(path, "clean_data")), test=dir.create(file.path(path, "clean_data")), FALSE)
-    
-    # filename of sce 
-    filename <- file.path(path, "clean_data", paste0(patientName,"_cleanData_sceRDS"))
+    if (isTRUE(removeEmptyDroplets)) {
+      ifelse(!dir.exists(file.path(path, "raw_clean_data")), test=dir.create(file.path(path, "raw_clean_data")), FALSE) 
+      # filename of sce 
+      filename <- file.path(path, "raw_clean_data", paste0(patientName,"_cleanData_sce.RDS"))
+    } else {
+      ifelse(!dir.exists(file.path(path, "filtered_clean_data")), test=dir.create(file.path(path, "filtered_clean_data")), FALSE)
+      # filename of sce 
+      filename <- file.path(path, "filtered_clean_data", paste0(patientName,"_cleanData_sce.RDS"))
+    }
     
     # if filename doesn't exist already, create it and sace sce
     saveRDS(sce, file=filename)
@@ -201,6 +206,9 @@ processCellRangerOutput <- function(patientName, emptyDropsIterations, save, ret
 ```
 
 ```{r test}
-processCellRangerOutput("patient1_HS", 100000, TRUE, FALSE, TRUE)
+processCellRangerOutput("patient1_HS", 100000, TRUE, FALSE, FALSE)
+processCellRangerOutput("patient1_SCC", 100000, TRUE, FALSE, FALSE)
+processCellRangerOutput("patient2_HS", 100000, TRUE, FALSE, FALSE)
+processCellRangerOutput("patient2_AK", 100000, TRUE, FALSE, FALSE)
 
 ```
