@@ -1,6 +1,6 @@
 ---
 title: "scRNAseq analysis of Levesque’s data"
-author: "Jonathan Haab"
+author:  "Leonor Schubert, Jonathan Haab, Flavio Rump"
 date: "22 12 2020"
 output: html_document
 ---
