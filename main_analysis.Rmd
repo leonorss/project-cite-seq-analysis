@@ -139,7 +139,7 @@ kable(cell.df)
 # run PCA
 
 # using known genes
-# genes not found in the data : "DCDN" "WISP2" "SEPP1" "TYP1" 
+# genes not found in the data : WISP2" "SEPP1" "TYP1" 
 # genes linked to pericytevSMC : "ACTA2","TAGLN"
 # were removed from the following list
 known_markers <- c("DSC3","DSP","LGALS7","KRT5","KRT14","COL17A1","KRT1","KRT10","LOR", "SPINK5","KRT6B","GJB2","GJB6","ATP1B1","MGST1","FASN","DCD","AQP5","DCN","LUM","MMP2","SLPI","CTHRC1","MFAP5","TSPAN8","CCL19","APOE","CXCL2","CXCL3","EFEMP1","APCDD1","ID1","WIF1","COL18A1","PTGDS","ASPN","POSTN","GPC3","TNN","SFRP1","RGS5","MYL9","TPM2","RERGL","PECAM1","SELE","CLDN5","VWF","PROX1","LYVE1","HLA-DRA","FCER1G","TYROBP","AIF1","CD1C","CD207","CD68","RNASE1","ITGAX","CD3D","CD3E","CD52","IL7R","DCT","MLANA","PMEL","CDH19","NGFR","UBE2C","PCNA")
@@ -220,7 +220,8 @@ genes <- list(
   mitotic  = c("UBE2C","PCNA")
 )
 
-
+# TODO: try to move the convert_rownames step higher in a block without output so we're less
+# likely to run it multiple time (which would lead to weird output)
 rownames(sce.patient1_HS) <- convert_rownames(sce.patient1_HS, g.patient1_HS, genes)
 results <- annotate_cells(sce.patient1_HS, g.patient1_HS, genes)
 sce.patient1_HS <- results[[1]]
