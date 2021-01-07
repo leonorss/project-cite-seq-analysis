@@ -216,8 +216,10 @@ dynamic_plot <- function(sceo, go, genes) {
   kera.dyn <- data.frame(names=c("Basal", "Cycling", "Differentiating"), percentage=percentage)
   kera.dyn
   
-  p <- ggplot(data=kera.dyn, aes(x=names, y=percentage, fill=names)) + geom_bar(stat="identity") + labs(title=paste("Proportion of Keratinocyte states in", attr(sceo, "name")),x="Subtypes", y="Percentage") + ylim(0,1) + theme(legend.position='none')
-  print(p)
+  #p <- ggplot(data=kera.dyn, aes(x=names, y=percentage, fill=names)) + geom_bar(stat="identity") + labs(title=paste("Proportion of Keratinocyte states in", attr(sceo, "name")),x="Subtypes", y="Percentage") + ylim(0,1) + theme(legend.position='none')
+  #print(p)
+  
+  return(kera.dyn)
   
 }
 
