@@ -82,7 +82,7 @@ sc_cluster <- function(sceo, k=30) {
   return(list(sceo, go))
 }
 
-convert_rownames <- function(sceo, go, genes) {
+convert_rownames <- function(sceo) {
   return(paste(rownames(sceo), rowData(sceo)$Symbol, sep = "."))
 }
 
@@ -138,7 +138,7 @@ pseudobulk <- function(sceo, kmo) {
 }
 
 cluster_subtype <- function(sceo, cell_type, known_markers, subtype_markers) {
-  # select the cell labeled as keratinocytes in the previous step
+  # select the cell labeled as 'cell type', i.e. keratinocytes in the previous step
   sceo.sub <- sceo[,sceo$cluster2==cell_type]
   
   sceo.sub <- remove_rare_genes(sceo.sub, 4)
@@ -255,7 +255,7 @@ dynamic_barplot <- function(df, name, labels, title){
                        position=position_dodge(),
                        #background and line colors
                        backgroundColor="white", color="black", 
-                       xtitle="Subtypes", ytitle="Percentage", 
+                       xtitle="Subtypes", ytitle="Proportion", 
                        mainTitle=paste(title, name),
                        removePanelGrid=TRUE, removePanelBorder=TRUE,
                        axisLine=c(0.5, "solid", "black"),
