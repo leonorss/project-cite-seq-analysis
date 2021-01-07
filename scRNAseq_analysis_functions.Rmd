@@ -28,6 +28,8 @@ suppressPackageStartupMessages({
   library(Matrix) # to handle sparse matrix
   library(BiocNeighbors) # for kNN graph
   library(igraph) # for cluster_louvain
+  
+  library(easyGgplot2)
 })
 ```
 
@@ -328,7 +330,7 @@ pseudobulk <- function(sceo, kmo) {
   # TODO : find a way to delete the left annotation which is unreadable
   
   # build a heatmap of the mean logcounts of the known markers:
-  h <- pheatmap(assay(pbo)[unlist(kmo),], annotation_row=data.frame(row.names=unlist(kmo), type=rep(names(kmo), lengths(kmo))), split=rep(names(kmo), lengths(kmo)), annotation_names_row=F, cluster_rows=FALSE, scale="row", main=paste(attr(sceo, "name"),"before markers aggregation"), fontsize_row=6, fontsize_col=10, angle_col = "45")
+  h <- pheatmap(assay(pbo)[unlist(kmo),], annotation_row=data.frame(row.names=unlist(kmo), type=rep(names(kmo), lengths(kmo))), split=rep(names(kmo), lengths(kmo)), annotation_names_row=FALSE, cluster_rows=FALSE, scale="row", main=paste(attr(sceo, "name"),"before markers aggregation"), fontsize_row=6, fontsize_col=10, angle_col = "45")
   print(h)
   
   #--- aggregation markers
@@ -351,7 +353,7 @@ pseudobulk <- function(sceo, kmo) {
   # we plot again the expression of the markers as a sanity check
   
   # If we want to hide the gene markers show_rownames = FALSE
-  h1 <- pheatmap(assay(pbo)[unlist(kmo),], annotation_row=data.frame(row.names=unlist(kmo), type=rep(names(kmo), lengths(kmo))), split=rep(names(kmo), lengths(kmo)), annotation_names_row=F, cluster_rows=FALSE, scale="row", main=paste(attr(sceo, "name"),"after markers aggregation"), fontsize_row=6, fontsize_col=10, angle_col = "45")
+  h1 <- pheatmap(assay(pbo)[unlist(kmo),], annotation_row=data.frame(row.names=unlist(kmo), type=rep(names(kmo), lengths(kmo))), annotation_names_row=FALSE, split=rep(names(kmo), lengths(kmo)), cluster_rows=FALSE, scale="row", main=paste(attr(sceo, "name"),"after markers aggregation"), fontsize_row=6, fontsize_col=10, angle_col = "45")
   print(h1)
   
   # UMAP plot
@@ -519,15 +521,48 @@ dynamic_plot <- function(sceo, go, genes) {
   kera.dyn <- data.frame(names=c("Basal", "Cycling", "Differentiating"), percentage=percentage)
   kera.dyn
   
-  p <- ggplot(data=kera.dyn, aes(x=names, y=percentage, fill=names)) + geom_bar(stat="identity") + labs(title=paste("Proportion of Keratinocyte states in", attr(sceo, "name")),x="Subtypes", y="Percentage") + ylim(0,1) + theme(legend.position='none')
-  print(p)
-  
+  #p <- ggplot(data=kera.dyn, aes(x=names, y=percentage, fill=names)) + geom_bar(stat="identity") + labs(title=paste("Proportion of Keratinocyte states in", attr(sceo, "name")),x="Subtypes", y="Percentage") + ylim(0,1) + theme(legend.position='none')
+  #print(p)
+  return(kera.dyn)
 }
 
-dynamic_plot(sce.patient1_HS.kera, g.patient1_HS.kera, genes.dyn)
-dynamic_plot(sce.patient1_SCC.kera, g.patient1_SCC.kera, genes.dyn)
-dynamic_plot(sce.patient2_HS.kera, g.patient2_HS.kera, genes.dyn)
-dynamic_plot(sce.patient2_AK.kera, g.patient2_AK.kera, genes.dyn)
+# dynamic_plot(sce.patient1_HS.kera, g.patient1_HS.kera, genes.dyn)
+# dynamic_plot(sce.patient1_SCC.kera, g.patient1_SCC.kera, genes.dyn)
+# dynamic_plot(sce.patient2_HS.kera, g.patient2_HS.kera, genes.dyn)
+# dynamic_plot(sce.patient2_AK.kera, g.patient2_AK.kera, genes.dyn)
+
+## lelo_new plot
+
+kera.dyn.patient1_HS <- dynamic_plot(sce.patient1_HS.kera, g.patient1_HS.kera, genes.dyn)
+kera.dyn.patient1_SCC <- dynamic_plot(sce.patient1_SCC.kera, g.patient1_SCC.kera, genes.dyn)
+kera.dyn.patient2_HS <- dynamic_plot(sce.patient2_HS.kera, g.patient2_HS.kera, genes.dyn)
+kera.dyn.patient2_AK <- dynamic_plot(sce.patient2_AK.kera, g.patient2_AK.kera, genes.dyn)
+
+kera.dyn.patient1 <- rbind(kera.dyn.patient1_HS, kera.dyn.patient1_SCC)
+kera.dyn.patient1$Type <- c("HS", "HS", "HS", "SCC", "SCC", "SCC")
+
+kera.dyn.patient2 <- rbind(kera.dyn.patient2_HS, kera.dyn.patient2_AK)
+kera.dyn.patient2$Type <- c("HS", "HS", "HS", "AK", "AK", "AK")
+
+dynamic_barplot <- function(df, name){
+  
+  p <- ggplot2.barplot(data=df, xName="names", yName="percentage",
+      groupName="type", 
+      position=position_dodge(),
+      #background and line colors
+      backgroundColor="white", color="black", 
+      xtitle="Subtypes", ytitle="Percentage", 
+      mainTitle=paste("Proportion of Keratinocyte states in", name),
+      removePanelGrid=TRUE, removePanelBorder=TRUE,
+      axisLine=c(0.5, "solid", "black"),
+      groupColors=c('#999999','#E69F00'),
+      ) 
+  print(p)
+}
+
+dynamic_barplot(kera.dyn.patient1, "Patient 1")
+dynamic_barplot(kera.dyn.patient2, "Patient 2")
+
 ```
 
 ```{r fibroblast}
