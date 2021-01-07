@@ -283,6 +283,16 @@ pb.patient2_AK <- results[[2]]
 mat.patient2_AK <- results[[3]]
 cl2.patient2_AK <- results[[4]]
 
+# create barplots of cell type proportions
+df.celltypes.patient1 <- rbind(df_barplot_celltypes(sce.patient1_HS), df_barplot_celltypes(sce.patient1_SCC))
+df.celltypes.patient1$Type <- c("HS", "HS", "HS", "HS", "HS", "HS", "HS", "HS", "SCC", "SCC", "SCC", "SCC", "SCC", "SCC", "SCC", "SCC")
+
+df.celltypes.patient2 <- rbind(df_barplot_celltypes(sce.patient2_HS), df_barplot_celltypes(sce.patient2_AK))
+df.celltypes.patient2$Type <- c("HS", "HS", "HS", "HS", "HS", "HS", "HS", "HS", "AK", "AK", "AK", "AK", "AK", "AK", "AK", "AK")
+  
+dynamic_barplot(df.celltypes.patient1, "Patient 1", T, "Proportion of cell types in")
+dynamic_barplot(df.celltypes.patient2, "Patient 2", T, "Proportion of cell types in")
+
 ```
 
 # Sub population
@@ -341,24 +351,9 @@ kera.dyn.patient1$Type <- c("HS", "HS", "HS", "SCC", "SCC", "SCC")
 kera.dyn.patient2 <- rbind(kera.dyn.patient2_HS, kera.dyn.patient2_AK)
 kera.dyn.patient2$Type <- c("HS", "HS", "HS", "AK", "AK", "AK")
 
-dynamic_barplot <- function(df, name){
-  
-  p <- ggplot2.barplot(data=df, xName="names", yName="percentage",
-      groupName="type", 
-      position=position_dodge(),
-      #background and line colors
-      backgroundColor="white", color="black", 
-      xtitle="Subtypes", ytitle="Percentage", 
-      mainTitle=paste("Proportion of Keratinocyte states in", name),
-      removePanelGrid=TRUE, removePanelBorder=TRUE,
-      axisLine=c(0.5, "solid", "black"),
-      groupColors=c('#999999','#E69F00'),
-      ) 
-  print(p)
-}
 
-dynamic_barplot(kera.dyn.patient1, "Patient 1")
-dynamic_barplot(kera.dyn.patient2, "Patient 2")
+dynamic_barplot(kera.dyn.patient1, "Patient 1", F, "Proportion of Keratinocyte states in")
+dynamic_barplot(kera.dyn.patient2, "Patient 2", F, "Proportion of Keratinocyte states in")
 
 ```
 

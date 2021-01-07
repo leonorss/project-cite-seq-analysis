@@ -401,6 +401,43 @@ cl2.patient2_AK <- results[[4]]
 
 ```
 
+```{r barplots cell populations}
+
+df_barplot_celltypes <- function(sceo){
+  
+  total <- ncol(sceo)
+  
+  keratinocyte <- ncol(sceo[, sceo$cluster2=="keratinocyte"])
+  fibroblast <- ncol(sceo[, sceo$cluster2=="fibroblast"])
+  endothelial <- ncol(sceo[, sceo$cluster2=="endothelial"])
+  myeloid <- ncol(sceo[, sceo$cluster2=="myeloid"])
+  lymphocyte <- ncol(sceo[, sceo$cluster2=="lymphocyte"])
+  melanocyte <- ncol(sceo[, sceo$cluster2=="melanocyte"])
+  schwann <- ncol(sceo[, sceo$cluster2=="schwann"])
+  mitotic <- ncol(sceo[, sceo$cluster2=="mitotic"])
+  
+  
+  counts <- c(keratinocyte, fibroblast, endothelial, myeloid, lymphocyte, melanocyte, schwann, mitotic)
+  percentage <- counts/total
+  
+  df.celltypes <- data.frame(names=c("keratinocyte", "fibroblast", "endothelial", "myeloid", "lymphocyte", "melanocyte", "schwann", "mitotic"), percentage=percentage)
+  
+  return(df.celltypes)
+  
+}  
+  
+df.celltypes.patient1 <- rbind(df_barplot_celltypes(sce.patient1_HS), df_barplot_celltypes(sce.patient1_SCC))
+df.celltypes.patient1$Type <- c("HS", "HS", "HS", "HS", "HS", "HS", "HS", "HS", "SCC", "SCC", "SCC", "SCC", "SCC", "SCC", "SCC", "SCC")
+
+df.celltypes.patient2 <- rbind(df_barplot_celltypes(sce.patient2_HS), df_barplot_celltypes(sce.patient2_AK))
+df.celltypes.patient2$Type <- c("HS", "HS", "HS", "HS", "HS", "HS", "HS", "HS", "AK", "AK", "AK", "AK", "AK", "AK", "AK", "AK")
+  
+dynamic_barplot(df.celltypes.patient1, "Patient 1", T, "Proportion of cell types in")
+dynamic_barplot(df.celltypes.patient2, "Patient 2", T, "Proportion of cell types in")
+
+
+```
+
 # Sub population
 ```{r keratinocyte}
 
@@ -544,24 +581,28 @@ kera.dyn.patient1$Type <- c("HS", "HS", "HS", "SCC", "SCC", "SCC")
 kera.dyn.patient2 <- rbind(kera.dyn.patient2_HS, kera.dyn.patient2_AK)
 kera.dyn.patient2$Type <- c("HS", "HS", "HS", "AK", "AK", "AK")
 
-dynamic_barplot <- function(df, name){
+dynamic_barplot <- function(df, name, labels, title){
   
   p <- ggplot2.barplot(data=df, xName="names", yName="percentage",
-      groupName="type", 
+      groupName="Type", 
       position=position_dodge(),
       #background and line colors
       backgroundColor="white", color="black", 
       xtitle="Subtypes", ytitle="Percentage", 
-      mainTitle=paste("Proportion of Keratinocyte states in", name),
+      mainTitle=paste(title, name),
       removePanelGrid=TRUE, removePanelBorder=TRUE,
       axisLine=c(0.5, "solid", "black"),
-      groupColors=c('#999999','#E69F00'),
+      groupColors=c('#999999','#E69F00')
       ) 
+  if (isTRUE(labels)){
+    p <- p + theme(text = element_text(size=7),
+        axis.text.x = element_text(angle=90, hjust=1)) 
+  }
   print(p)
 }
 
-dynamic_barplot(kera.dyn.patient1, "Patient 1")
-dynamic_barplot(kera.dyn.patient2, "Patient 2")
+dynamic_barplot(kera.dyn.patient1, "Patient 1", F, "Proportion of Keratinocyte states in")
+dynamic_barplot(kera.dyn.patient2, "Patient 2", F, "Proportion of Keratinocyte states in")
 
 ```
 
