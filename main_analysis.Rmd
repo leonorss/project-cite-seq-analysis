@@ -121,6 +121,20 @@ hvg.patient2_AK <- results[[2]]
 ADD A NICE TABLE WITH ALL THE MARKER USED (and their source) AND EXPLAINED WHICH WEREN'T FOUND
 also explain that we decided to add the known markers from the litterature into the group of genes used to produce a low-dimensional representation of the data even when they were not part of the most variable genes
 
+```{r gene_table, echo=FALSE}
+library(knitr)
+
+cell_types <- c("Keratinocyte", "", "", "", "", "", "", "", "Fibroblast", "", "", "", "", "Pericyte & vSMC", "", "", "Endothelial cell", "", "Myeloid", "", "", "", "Lymphocyte", "Melanocyte", "Schwann cell", "Mitotic cell")
+
+cell_subtypes <- c("", "basal", "suprabasal", "differentiated", "ORS", "channel", "sebaceous gland", "sweat gland", "", "secretory reticular", "proinflammatory", "secretory papillary", "mesenchymal", "", "pericyte", "vSMC", "", "lymphatic", "", "dendritic", "langerhans", "macrophage", "", "", "", "")
+
+markers <- c(paste("DSC3","DSP","LGALS7"), paste("KRT5","KRT14","COL17A1"), paste("KRT1","KRT10"), paste("LOR", "SPINK5"), paste("KRT6B"), paste("GJB2","GJB6","ATP1B1"), paste("MGST1","FASN"), paste("DCD","AQP5"), paste("LUM","MMP2"), paste("SLPI","CTHRC1","MFAP5","TSPAN8"), paste("CCL19","APOE","CXCL2","CXCL3","EFEMP1"), paste("APCDD1","ID1","WIF1","COL18A1","PTGDS"), paste("ASPN","POSTN","GPC3","TNN","SFRP1"), paste("ACTA2","TAGLN"), paste("RGS5"), paste("MYL9","TPM2","RERGL"), paste("PECAM1","SELE","CLDN5","VWF"), paste("PROX1","LYVE1"), paste("HLA-DRA","FCER1G","TYROBP","AIF1"), paste("CD1C"), paste("CD207"), paste("CD68","RNASE1","ITGAX"), paste("CD3D","CD3E","CD52","IL7R"), paste("DCT","MLANA","PMEL"), paste("CDH19","NGFR"), paste("UBE2C","PCNA"))
+
+cell.df <- data.frame(Types=cell_types, Subtypes=cell_subtypes, Markers=markers)
+
+kable(cell.df)
+```
+
 ```{r pca}
 # run PCA
 
@@ -366,8 +380,6 @@ sce.patient2_HS.fibro <- cluster_subtype(sce.patient2_HS, "fibroblast", known_ma
 sce.patient2_AK.fibro <- cluster_subtype(sce.patient2_AK, "fibroblast", known_markers.fibro, genes.fibro)
 
 ```
-
-
 
 
 #######################################################################################
