@@ -223,3 +223,49 @@ dynamic_plot <- function(sceo, go, genes) {
   
 }
 
+# create data frame to make barplot of celltypes
+df_barplot_celltypes <- function(sceo){
+  
+  total <- ncol(sceo)
+  
+  keratinocyte <- ncol(sceo[, sceo$cluster2=="keratinocyte"])
+  fibroblast <- ncol(sceo[, sceo$cluster2=="fibroblast"])
+  endothelial <- ncol(sceo[, sceo$cluster2=="endothelial"])
+  myeloid <- ncol(sceo[, sceo$cluster2=="myeloid"])
+  lymphocyte <- ncol(sceo[, sceo$cluster2=="lymphocyte"])
+  melanocyte <- ncol(sceo[, sceo$cluster2=="melanocyte"])
+  schwann <- ncol(sceo[, sceo$cluster2=="schwann"])
+  mitotic <- ncol(sceo[, sceo$cluster2=="mitotic"])
+  
+  
+  counts <- c(keratinocyte, fibroblast, endothelial, myeloid, lymphocyte, melanocyte, schwann, mitotic)
+  percentage <- counts/total
+  
+  df.celltypes <- data.frame(names=c("keratinocyte", "fibroblast", "endothelial", "myeloid", "lymphocyte", "melanocyte", "schwann", "mitotic"), percentage=percentage)
+  
+  return(df.celltypes)
+  
+}
+
+# create comparable barplot of cell composition in healthy vs. disease
+dynamic_barplot <- function(df, name, labels, title){
+  
+  p <- ggplot2.barplot(data=df, xName="names", yName="percentage",
+                       groupName="Type", 
+                       position=position_dodge(),
+                       #background and line colors
+                       backgroundColor="white", color="black", 
+                       xtitle="Subtypes", ytitle="Percentage", 
+                       mainTitle=paste(title, name),
+                       removePanelGrid=TRUE, removePanelBorder=TRUE,
+                       axisLine=c(0.5, "solid", "black"),
+                       groupColors=c('#999999','#E69F00')
+  ) 
+  if (isTRUE(labels)){
+    p <- p + theme(text = element_text(size=7),
+                   axis.text.x = element_text(angle=90, hjust=1)) 
+  }
+  print(p)
+}
+
+
