@@ -289,8 +289,8 @@ df.celltypes.patient1$Type <- c("HS", "HS", "HS", "HS", "HS", "HS", "HS", "HS", 
 df.celltypes.patient2 <- rbind(df_barplot_celltypes(sce.patient2_HS), df_barplot_celltypes(sce.patient2_AK))
 df.celltypes.patient2$Type <- c("HS", "HS", "HS", "HS", "HS", "HS", "HS", "HS", "AK", "AK", "AK", "AK", "AK", "AK", "AK", "AK")
   
-dynamic_barplot(df.celltypes.patient1, "Patient 1", T, "Proportion of cell types in")
-dynamic_barplot(df.celltypes.patient2, "Patient 2", T, "Proportion of cell types in")
+celltype_barplot(df.celltypes.patient1, "Patient 1", T, "Proportion of cell types in")
+celltype_barplot(df.celltypes.patient2, "Patient 2", T, "Proportion of cell types in")
 
 ```
 
