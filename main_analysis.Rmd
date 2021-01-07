@@ -2,6 +2,7 @@
 title: "scRNAseq analysis of Levesque’s data"
 author: "Leonor Schubert, Jonathan Haab, Flavio Rump"
 date: "22 12 2020"
+bibliography: references.bib
 output: html_document
 ---
 from pipeline example described by Pierre-Luc Germain, course sta426 UZH
