@@ -265,7 +265,7 @@ dynamic_plot <- function(sceo, go, genes) {
 }
 
 # create data frame to make barplot of celltypes
-df_barplot_celltypes <- function(sceo){
+df_barplot_celltypes <- function(sceo, return_prop=TRUE){
   
   total <- ncol(sceo)
   
@@ -278,20 +278,40 @@ df_barplot_celltypes <- function(sceo){
   schwann <- ncol(sceo[, sceo$cluster2=="schwann"])
   mitotic <- ncol(sceo[, sceo$cluster2=="mitotic"])
   
-  
   counts <- c(keratinocyte, fibroblast, endothelial, myeloid, lymphocyte, melanocyte, schwann, mitotic)
-  percentage <- counts/total
   
-  df.celltypes <- data.frame(names=c("keratinocyte", "fibroblast", "endothelial", "myeloid", "lymphocyte", "melanocyte", "schwann", "mitotic"), percentage=percentage)
-  
+  if(return_prop) {
+    proportion <- counts/total
+    
+    df.celltypes <- data.frame(names=c("keratinocyte", "fibroblast", "endothelial", "myeloid", "lymphocyte", "melanocyte", "schwann", "mitotic"), proportion=proportion)
+  }
+  else {
+    df.celltypes <- data.frame(names=c("keratinocyte", "fibroblast", "endothelial", "myeloid", "lymphocyte", "melanocyte", "schwann", "mitotic"), counts)
+  }
   return(df.celltypes)
+  
+}
+
+
+fisher_test_subtypes <- function(sce1, sce2, subtype) {
+  cell_counts_sce1 <- df_barplot_celltypes(sce1, FALSE)
+  cell_counts_sce2 <- df_barplot_celltypes(sce2, FALSE)
+  
+  num_subtype_sample1 <- sum(cell_counts_sce1[cell_counts_sce1$names == subtype,][2])
+  num_non_subtype_sample1 <- sum(cell_counts_sce1[cell_counts_sce1$names != subtype,][2])
+  num_subtype_sample2 <- sum(cell_counts_sce2[cell_counts_sce2$names == subtype,][2])
+  num_non_subtype_sample2 <- sum(cell_counts_sce2[cell_counts_sce2$names != subtype,][2])
+  
+  subtype_matrix <- matrix(c(num_subtype_sample1, num_non_subtype_sample1, num_subtype_sample2, num_non_subtype_sample2), nrow=2)
+  
+  fisher.test(subtype_matrix)
   
 }
 
 # create comparable barplot of cell composition in healthy vs. disease
 dynamic_barplot <- function(df, name, labels, title){
   
-  p <- ggplot2.barplot(data=df, xName="names", yName="percentage",
+  p <- ggplot2.barplot(data=df, xName="names", yName="proportion",
                        groupName="Type", 
                        position=position_dodge(),
                        #background and line colors

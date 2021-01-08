@@ -61,9 +61,9 @@ source("functions/functions_analysis.R")
 
 #pick your poison
 
-#sces <- read_previous_data()
+sces <- read_previous_data()
 #sces <- read_and_qc(6)
-sces <- read_10x()
+#sces <- read_10x()
 
 ```
 
@@ -290,6 +290,12 @@ df.celltypes.patient2$Type <- c("HS", "HS", "HS", "HS", "HS", "HS", "HS", "HS", 
   
 dynamic_barplot(df.celltypes.patient1, "Patient 1", T, "Proportion of cell types in")
 dynamic_barplot(df.celltypes.patient2, "Patient 2", T, "Proportion of cell types in")
+
+##are those results significant or could they have happened by chance?
+fisher_test_subtypes(sce.patient1_HS, sce.patient1_SCC, 'keratinocyte')
+fisher_test_subtypes(sce.patient1_HS, sce.patient1_SCC, 'lymphocyte')
+fisher_test_subtypes(sce.patient1_HS, sce.patient1_SCC, 'fibroblast')
+
 
 ```
 
