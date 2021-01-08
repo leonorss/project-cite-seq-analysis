@@ -107,6 +107,7 @@ Next we removed the dead cells, e.g. the cells with high mitochondrial gene expr
 
 In order to normalize our data, we first tried Library-Size normalization, which assumes that there is no “imbalance” in the differentially expressed (DE) genes between any pair of cells (@bioconductor). After observing that the separation of the clusters wasn't satisfying, we decided to use Variance Stabilizing Transformation (VST). VST helps in the sens that it manage to transform the data into a more gaussian-shaped distribution.
 
+TODO : reorganize and put hvg step in the next step (hvg is used for pca)
 ```{r vst, include=FALSE}
 
 results <- variance_stabilization(sce.patient1_HS, 2000)
@@ -143,6 +144,7 @@ kable(cell.df)
 
 ## Reduction
 
+The first step of the dimensinality reduction of our data was to select the 2'000 most variable genes because cell type is most likely influence by those variable gene more than the less variable ones. In addition to those highly variable genes (hvg), we decided to included the genes known to be present in certain cell (sub)types rather than others, even when those specific genes were not part of the 2'000 most variable ones. We ran principal component analysis (PCA) using the selected genes and kept the 20 first principal components (PCs) based on the explained variance to transform our data. Finally, we ran tSNE and UMAP on the modified data to get a 2D representation of the data.
 
 ```{r pca}
 # using known genes
