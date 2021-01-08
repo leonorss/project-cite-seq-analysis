@@ -34,10 +34,10 @@ read_previous_data <- function() {
 read_and_qc <- function(cores=4)
 {
   sces <- list()
-  sces[[1]] <- processCellRangerOutput("patient1_HS", 100000, TRUE, TRUE, TRUE, cores)
-  sces[[2]] <- processCellRangerOutput("patient1_SCC", 100000, TRUE, TRUE, TRUE, cores)
-  sces[[3]] <- processCellRangerOutput("patient2_HS", 100000, TRUE, TRUE, TRUE, cores)
-  sces[[4]] <- processCellRangerOutput("patient2_AK", 100000, TRUE, TRUE, TRUE, cores)
+  sces[[1]] <- processCellRangerOutput("patient1_HS", 100000, TRUE, TRUE, FALSE, cores)
+  sces[[2]] <- processCellRangerOutput("patient1_SCC", 100000, TRUE, TRUE, FALSE, cores)
+  sces[[3]] <- processCellRangerOutput("patient2_HS", 100000, TRUE, TRUE, FALSE, cores)
+  sces[[4]] <- processCellRangerOutput("patient2_AK", 100000, TRUE, TRUE, FALSE, cores)
   return(sces)
 }
 
@@ -253,8 +253,8 @@ dynamic_plot <- function(sceo, go, genes) {
   cycling <- ncol(sceo[,sceo$cluster3=="keratinocyte_cycling"])
   diff <- ncol(sceo[,sceo$cluster3=="keratinocyte_differentiating"])
   counts <- c(basal, cycling, diff)
-  percentage <- counts/total
-  kera.dyn <- data.frame(names=c("Basal", "Cycling", "Differentiating"), percentage=percentage)
+  proportion <- counts/total
+  kera.dyn <- data.frame(names=c("Basal", "Cycling", "Differentiating"), proportion=proportion)
   kera.dyn
   
   #p <- ggplot(data=kera.dyn, aes(x=names, y=percentage, fill=names)) + geom_bar(stat="identity") + labs(title=paste("Proportion of Keratinocyte states in", attr(sceo, "name")),x="Subtypes", y="Percentage") + ylim(0,1) + theme(legend.position='none')

@@ -70,8 +70,8 @@ Next we removed the dead cells, e.g. the cells with high mitochondrial gene expr
 
 #pick your poison
 
-sces <- read_previous_data()
-#sces <- read_and_qc(6)
+#sces <- read_previous_data()
+sces <- read_and_qc(4)
 #sces <- read_10x()
 
 ```
@@ -298,7 +298,7 @@ df.celltypes.patient2 <- rbind(df_barplot_celltypes(sce.patient2_HS), df_barplot
 df.celltypes.patient2$Type <- c("HS", "HS", "HS", "HS", "HS", "HS", "HS", "HS", "AK", "AK", "AK", "AK", "AK", "AK", "AK", "AK")
   
 dynamic_barplot(df.celltypes.patient1, "Patient 1", T, "Proportion of cell types in", c(HS ='#999999', SCC = '#E69F00'))
-dynamic_barplot(df.celltypes.patient2, "Patient 2", T, "Proportion of cell types in", c(HS ='#999999', AK = '#E69F00')))
+dynamic_barplot(df.celltypes.patient2, "Patient 2", T, "Proportion of cell types in", c(HS ='#999999', AK = '#E69F00'))
 
 ##are those results significant or could they have happened by chance?
 fisher_test_subtypes(sce.patient1_HS, sce.patient1_SCC, 'keratinocyte')
@@ -366,8 +366,8 @@ kera.dyn.patient2 <- rbind(kera.dyn.patient2_HS, kera.dyn.patient2_AK)
 kera.dyn.patient2$Type <- c("HS", "HS", "HS", "AK", "AK", "AK")
 
 
-dynamic_barplot(kera.dyn.patient1, "Patient 1", F, "Proportion of Keratinocyte states in", c(HS ='#999999', SCC = '#E69F00')))
-dynamic_barplot(kera.dyn.patient2, "Patient 2", F, "Proportion of Keratinocyte states in", c(HS ='#999999', AK = '#E69F00')))
+dynamic_barplot(kera.dyn.patient1, "Patient 1", F, "Proportion of Keratinocyte states in", c(HS ='#999999', SCC = '#E69F00'))
+dynamic_barplot(kera.dyn.patient2, "Patient 2", F, "Proportion of Keratinocyte states in", c(HS ='#999999', AK = '#E69F00'))
 
 ```
 
