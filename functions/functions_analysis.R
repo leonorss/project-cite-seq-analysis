@@ -248,7 +248,7 @@ df_barplot_celltypes <- function(sceo){
 }
 
 # create comparable barplot of cell composition in healthy vs. disease
-dynamic_barplot <- function(df, name, labels, title){
+dynamic_barplot <- function(df, name, labels, title, colors){
   
   p <- ggplot2.barplot(data=df, xName="names", yName="percentage",
                        groupName="Type", 
@@ -259,7 +259,7 @@ dynamic_barplot <- function(df, name, labels, title){
                        mainTitle=paste(title, name),
                        removePanelGrid=TRUE, removePanelBorder=TRUE,
                        axisLine=c(0.5, "solid", "black"),
-                       groupColors=c('#999999','#E69F00')
+                       groupColors=colors
   ) 
   if (isTRUE(labels)){
     p <- p + theme(text = element_text(size=7),

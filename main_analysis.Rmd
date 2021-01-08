@@ -50,6 +50,15 @@ source("functions/functions_analysis.R")
 
 ## Loading the data
 
+We look at both the raw and unfiltered data from the cell ranger output, to see what yields the best results. For both data sets, we first ran them through our quality control function. Since the filtered data already has all the empty droplets removed, this step will be skipped for the filtered data, but not for the raw data. In the following section we will quickly go over what steps we took in our quality control function and how we made sure they were sensible.
+
+The first step in our pipeline is to seperate the antibody-derived tag (ADT) data from the remaining mRNA counts and clean them up. Ideally we'd like to identify the cells which failed to capture the ADT's and remove them. This is normally done by removing cells with ADT counts less than or equal to half of the total number of tags. If we do that we loose a huge number of cells as shown in the summary output. We also created a plot showing the distribution of the number of detected ADT's and from there we observe that we have lots of cells with zero ADT counts and a smaller peak at around 50. From this plot we decided to change the threshold at which cells will be discarded to 25, to not throw away as many cells. But even with this change it seems like to many cells will be discarded because of low quality ADT data, which is why we decided to ignore this part of the data altogether.
+
+In the next step, the empty droplets will be removed. As mentioned before this only happens for the raw data. For this we ran the funciton emptyDrops(), which tests if the counts of a cell are significantly different from the ambient mRNA pool. If this is not the case, then it is most likely an empty droplet. After looking at some summary statistics of the output of this function, we realized that there were non-significant cellbarcodes, which were bounded by the number of iterations. We therefore increased the number of iterations in emptyDrops() until this wasn't the case anymore (100'000). There's also a plot showing the histogram of the p-values given by emptyDrops(), which should ideally be approximatelly uniform especially at the beginning. This was luckily the case. It is interesting to note, that this part of the quality control pipeline is responsible for the most amount of discarded cells.
+
+Next we removed the dead cells, e.g. the cells with high mitochondrial gene expression. The approach we used was the same as in class. Lastly we also removed cells, which have low library sizes and detection rates. As seen in class we used the perCellQCMetrics() and isOutlier() functions to do so. Before removing all these cells we looked at the plots showing the above metrics to have an idea what they look like. We also produced a plot showing the log-fold-change of the discarded vs. kept cells. This plot should help decide if an entire cell type is accidently discarded because of our quality control. If that would be the case, we would observe an enrichment of a certain cell type in the discarded group, which can be identified by an increased expression of the corresponding marker genes.
+
+
 ```{r data-loading}
 ## data can be downloaded from : http://imlspenticton.uzh.ch/dump/files_for_levesque.tar
 
@@ -318,8 +327,8 @@ df.celltypes.patient1$Type <- c("HS", "HS", "HS", "HS", "HS", "HS", "HS", "HS", 
 df.celltypes.patient2 <- rbind(df_barplot_celltypes(sce.patient2_HS), df_barplot_celltypes(sce.patient2_AK))
 df.celltypes.patient2$Type <- c("HS", "HS", "HS", "HS", "HS", "HS", "HS", "HS", "AK", "AK", "AK", "AK", "AK", "AK", "AK", "AK")
   
-dynamic_barplot(df.celltypes.patient1, "Patient 1", T, "Proportion of cell types in")
-dynamic_barplot(df.celltypes.patient2, "Patient 2", T, "Proportion of cell types in")
+dynamic_barplot(df.celltypes.patient1, "Patient 1", T, "Proportion of cell types in", c(HS ='#999999', SCC = '#E69F00'))
+dynamic_barplot(df.celltypes.patient2, "Patient 2", T, "Proportion of cell types in", c(HS ='#999999', AK = '#E69F00')))
 
 ```
 
@@ -381,8 +390,8 @@ kera.dyn.patient2 <- rbind(kera.dyn.patient2_HS, kera.dyn.patient2_AK)
 kera.dyn.patient2$Type <- c("HS", "HS", "HS", "AK", "AK", "AK")
 
 
-dynamic_barplot(kera.dyn.patient1, "Patient 1", F, "Proportion of Keratinocyte states in")
-dynamic_barplot(kera.dyn.patient2, "Patient 2", F, "Proportion of Keratinocyte states in")
+dynamic_barplot(kera.dyn.patient1, "Patient 1", F, "Proportion of Keratinocyte states in", c(HS ='#999999', SCC = '#E69F00')))
+dynamic_barplot(kera.dyn.patient2, "Patient 2", F, "Proportion of Keratinocyte states in", c(HS ='#999999', AK = '#E69F00')))
 
 ```
 
