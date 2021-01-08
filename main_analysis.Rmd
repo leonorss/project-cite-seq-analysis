@@ -68,42 +68,6 @@ Next we removed the dead cells, e.g. the cells with high mitochondrial gene expr
 # # read in filtered data
 # fnameHS <- file.path(patient1_HS.path, "outs/filtered_feature_bc_matrix")
 
-
-#read 10x data that has empty drops filtered but nothing else(?)
-read_10x <- function() {
-  sample_names <- list("patient1_HS", "patient1_SCC", "patient2_HS", "patient2_AK")
-  patient1_HS.path <- file.path("data", "patient1_HS")
-  patient1_SCC.path <- file.path("data", "patient1_SCC")
-  patient2_HS.path <- file.path("data", "patient2_HS")
-  patient2_AK.path <- file.path("data", "patient2_AK")
-  
-  
-  # read in filtered data and create list of SingleCellExperiment objects
-  paths <- list(patient1_HS.path, patient1_SCC.path, patient2_HS.path, patient2_AK.path)
-  sces <- lapply(paths, function(i) read10xCounts(file.path(i, "outs/filtered_feature_bc_matrix"), col.names = TRUE))
-  return(sces)
-}
-#read previusly stored data
-read_previous_data <- function() {
-  sces <- list()
-  sces[[1]] <- readRDS('data/patient1_HS/clean_data/patient1_HS_cleanData_sce.RDS')
-  sces[[2]] <- readRDS('data/patient1_SCC/clean_data/patient1_SCC_cleanData_sce.RDS')
-  sces[[3]] <- readRDS('data/patient2_HS/clean_data/patient2_HS_cleanData_sce.RDS')
-  sces[[4]] <- readRDS('data/patient2_AK/clean_data/patient2_AK_cleanData_sce.RDS')
-  return(sces)
-}
-    
-#read raw data and conduct QC
-read_and_qc <- function(cores=4)
-{
-  sces <- list()
-  sces[[1]] <- processCellRangerOutput("patient1_HS", 100000, TRUE, TRUE, TRUE, cores)
-  sces[[2]] <- processCellRangerOutput("patient1_SCC", 100000, TRUE, TRUE, TRUE, cores)
-  sces[[3]] <- processCellRangerOutput("patient2_HS", 100000, TRUE, TRUE, TRUE, cores)
-  sces[[4]] <- processCellRangerOutput("patient2_AK", 100000, TRUE, TRUE, TRUE, cores)
-  return(sces)
-}
-
 #pick your poison
 
 sces <- read_previous_data()
@@ -133,6 +97,12 @@ attr(sce.patient2_AK, "name") <- "Patient2 AK"
 # rownames(sce.patient1_SCC) <- convert_rownames(sce.patient1_SCC)
 # rownames(sce.patient2_HS) <- convert_rownames(sce.patient2_HS)
 # rownames(sce.patient2_AK) <- convert_rownames(sce.patient2_AK)
+
+#make sure every rowname has the format ENS_ID.Gene_Name
+rownames(sce.patient1_HS) <- paste_rownames(sce.patient1_HS)
+rownames(sce.patient1_SCC) <- paste_rownames(sce.patient1_SCC)
+rownames(sce.patient2_HS) <- paste_rownames(sce.patient2_HS)
+rownames(sce.patient2_AK) <- paste_rownames(sce.patient2_AK)
 ```
 
 ## Normalization & reduction
@@ -329,6 +299,12 @@ df.celltypes.patient2$Type <- c("HS", "HS", "HS", "HS", "HS", "HS", "HS", "HS", 
   
 dynamic_barplot(df.celltypes.patient1, "Patient 1", T, "Proportion of cell types in", c(HS ='#999999', SCC = '#E69F00'))
 dynamic_barplot(df.celltypes.patient2, "Patient 2", T, "Proportion of cell types in", c(HS ='#999999', AK = '#E69F00')))
+
+##are those results significant or could they have happened by chance?
+fisher_test_subtypes(sce.patient1_HS, sce.patient1_SCC, 'keratinocyte')
+fisher_test_subtypes(sce.patient1_HS, sce.patient1_SCC, 'lymphocyte')
+fisher_test_subtypes(sce.patient1_HS, sce.patient1_SCC, 'fibroblast')
+
 
 ```
 

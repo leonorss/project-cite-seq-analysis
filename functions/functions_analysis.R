@@ -5,6 +5,43 @@
 # Course STA426, UZH
 #######################################################################################
 
+
+#read 10x data that has empty drops filtered but nothing else(?)
+read_10x <- function() {
+  sample_names <- list("patient1_HS", "patient1_SCC", "patient2_HS", "patient2_AK")
+  patient1_HS.path <- file.path("data", "patient1_HS")
+  patient1_SCC.path <- file.path("data", "patient1_SCC")
+  patient2_HS.path <- file.path("data", "patient2_HS")
+  patient2_AK.path <- file.path("data", "patient2_AK")
+  
+  
+  # read in filtered data and create list of SingleCellExperiment objects
+  paths <- list(patient1_HS.path, patient1_SCC.path, patient2_HS.path, patient2_AK.path)
+  sces <- lapply(paths, function(i) read10xCounts(file.path(i, "outs/filtered_feature_bc_matrix"), col.names = TRUE))
+  return(sces)
+}
+#read previusly stored data
+read_previous_data <- function() {
+  sces <- list()
+  sces[[1]] <- readRDS('data/patient1_HS/clean_data/patient1_HS_cleanData_sce.RDS')
+  sces[[2]] <- readRDS('data/patient1_SCC/clean_data/patient1_SCC_cleanData_sce.RDS')
+  sces[[3]] <- readRDS('data/patient2_HS/clean_data/patient2_HS_cleanData_sce.RDS')
+  sces[[4]] <- readRDS('data/patient2_AK/clean_data/patient2_AK_cleanData_sce.RDS')
+  return(sces)
+}
+
+#read raw data and conduct QC
+read_and_qc <- function(cores=4)
+{
+  sces <- list()
+  sces[[1]] <- processCellRangerOutput("patient1_HS", 100000, TRUE, TRUE, TRUE, cores)
+  sces[[2]] <- processCellRangerOutput("patient1_SCC", 100000, TRUE, TRUE, TRUE, cores)
+  sces[[3]] <- processCellRangerOutput("patient2_HS", 100000, TRUE, TRUE, TRUE, cores)
+  sces[[4]] <- processCellRangerOutput("patient2_AK", 100000, TRUE, TRUE, TRUE, cores)
+  return(sces)
+}
+
+
 split_data <- function(sceo) {
   # Split the data, store ADT in alternative experiment
   sceo <- splitAltExps(sceo, rowData(sceo)$Type)
@@ -84,6 +121,10 @@ sc_cluster <- function(sceo, k=30) {
 
 convert_rownames <- function(sceo) {
   return(paste(rownames(sceo), rowData(sceo)$Symbol, sep = "."))
+}
+
+paste_rownames <- function(sceo) {
+  return(paste(rowData(sceo)$ID, rowData(sceo)$Symbol, sep = "."))
 }
 
 annotate_cells <- function(sceo, go, genes) {
@@ -224,7 +265,7 @@ dynamic_plot <- function(sceo, go, genes) {
 }
 
 # create data frame to make barplot of celltypes
-df_barplot_celltypes <- function(sceo){
+df_barplot_celltypes <- function(sceo, return_prop=TRUE){
   
   total <- ncol(sceo)
   
@@ -237,20 +278,40 @@ df_barplot_celltypes <- function(sceo){
   schwann <- ncol(sceo[, sceo$cluster2=="schwann"])
   mitotic <- ncol(sceo[, sceo$cluster2=="mitotic"])
   
-  
   counts <- c(keratinocyte, fibroblast, endothelial, myeloid, lymphocyte, melanocyte, schwann, mitotic)
-  percentage <- counts/total
   
-  df.celltypes <- data.frame(names=c("keratinocyte", "fibroblast", "endothelial", "myeloid", "lymphocyte", "melanocyte", "schwann", "mitotic"), percentage=percentage)
-  
+  if(return_prop) {
+    proportion <- counts/total
+    
+    df.celltypes <- data.frame(names=c("keratinocyte", "fibroblast", "endothelial", "myeloid", "lymphocyte", "melanocyte", "schwann", "mitotic"), proportion=proportion)
+  }
+  else {
+    df.celltypes <- data.frame(names=c("keratinocyte", "fibroblast", "endothelial", "myeloid", "lymphocyte", "melanocyte", "schwann", "mitotic"), counts)
+  }
   return(df.celltypes)
+  
+}
+
+
+fisher_test_subtypes <- function(sce1, sce2, subtype) {
+  cell_counts_sce1 <- df_barplot_celltypes(sce1, FALSE)
+  cell_counts_sce2 <- df_barplot_celltypes(sce2, FALSE)
+  
+  num_subtype_sample1 <- sum(cell_counts_sce1[cell_counts_sce1$names == subtype,][2])
+  num_non_subtype_sample1 <- sum(cell_counts_sce1[cell_counts_sce1$names != subtype,][2])
+  num_subtype_sample2 <- sum(cell_counts_sce2[cell_counts_sce2$names == subtype,][2])
+  num_non_subtype_sample2 <- sum(cell_counts_sce2[cell_counts_sce2$names != subtype,][2])
+  
+  subtype_matrix <- matrix(c(num_subtype_sample1, num_non_subtype_sample1, num_subtype_sample2, num_non_subtype_sample2), nrow=2)
+  
+  fisher.test(subtype_matrix)
   
 }
 
 # create comparable barplot of cell composition in healthy vs. disease
 dynamic_barplot <- function(df, name, labels, title, colors){
   
-  p <- ggplot2.barplot(data=df, xName="names", yName="percentage",
+  p <- ggplot2.barplot(data=df, xName="names", yName="proportion",
                        groupName="Type", 
                        position=position_dodge(),
                        #background and line colors
