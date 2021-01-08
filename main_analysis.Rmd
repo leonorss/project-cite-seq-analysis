@@ -5,13 +5,17 @@ date: "22 12 2020"
 bibliography: references.bib
 output: html_document
 ---
-from pipeline example described by Pierre-Luc Germain, course sta426 UZH
-
-# Loading necessary libraries
+Inspired from the pipeline by Pierre-Luc Germain presented in course STA426 (UZH)
 
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE, warning = FALSE, message = FALSE)
+```
 
+# Preprocessing
+
+## Loading necessary libraries
+
+```{r libraries}
 suppressPackageStartupMessages({
   library(SingleCellExperiment)
   library(scran)
@@ -31,7 +35,7 @@ suppressPackageStartupMessages({
   library(igraph) # for cluster_louvain
   
   library(devtools)
-  library(easyGgplot2)
+  library(easyGgplot2) # for pretty barplots
   
 })
 ```
@@ -46,33 +50,24 @@ source("functions/functions_qc.R")
 source("functions/functions_analysis.R")
 ```
 
-# Preprocessing & Clustering
 
 ## Loading the data
 
-We look at both the raw and unfiltered data from the cell ranger output, to see what yields the best results. For both data sets, we first ran them through our quality control function. Since the filtered data already has all the empty droplets removed, this step will be skipped for the filtered data, but not for the raw data. In the following section we will quickly go over what steps we took in our quality control function and how we made sure they were sensible.
-
-The first step in our pipeline is to seperate the antibody-derived tag (ADT) data from the remaining mRNA counts and clean them up. Ideally we'd like to identify the cells which failed to capture the ADT's and remove them. This is normally done by removing cells with ADT counts less than or equal to half of the total number of tags. If we do that we loose a huge number of cells as shown in the summary output. We also created a plot showing the distribution of the number of detected ADT's and from there we observe that we have lots of cells with zero ADT counts and a smaller peak at around 50. From this plot we decided to change the threshold at which cells will be discarded to 25, to not throw away as many cells. But even with this change it seems like to many cells will be discarded because of low quality ADT data, which is why we decided to ignore this part of the data altogether.
-
-In the next step, the empty droplets will be removed. As mentioned before this only happens for the raw data. For this we ran the funciton emptyDrops(), which tests if the counts of a cell are significantly different from the ambient mRNA pool. If this is not the case, then it is most likely an empty droplet. After looking at some summary statistics of the output of this function, we realized that there were non-significant cellbarcodes, which were bounded by the number of iterations. We therefore increased the number of iterations in emptyDrops() until this wasn't the case anymore (100'000). There's also a plot showing the histogram of the p-values given by emptyDrops(), which should ideally be approximatelly uniform especially at the beginning. This was luckily the case. It is interesting to note, that this part of the quality control pipeline is responsible for the most amount of discarded cells.
-
-Next we removed the dead cells, e.g. the cells with high mitochondrial gene expression. The approach we used was the same as in class. Lastly we also removed cells, which have low library sizes and detection rates. As seen in class we used the perCellQCMetrics() and isOutlier() functions to do so. Before removing all these cells we looked at the plots showing the above metrics to have an idea what they look like. We also produced a plot showing the log-fold-change of the discarded vs. kept cells. This plot should help decide if an entire cell type is accidently discarded because of our quality control. If that would be the case, we would observe an enrichment of a certain cell type in the discarded group, which can be identified by an increased expression of the corresponding marker genes.
-
+For the following chunk, three options are available. The filtered data provided by 10X can be read and used directly. Otherwise, the same data from 10X are read but also preprocess using quality check. The third option is to load data that were previously preprocessed and saved.
 
 ```{r data-loading}
 ## data can be downloaded from : http://imlspenticton.uzh.ch/dump/files_for_levesque.tar
 
-#TODO: can be deleted?
-# patient1_HS.path <- file.path("data", "patient1_HS")
-# 
-# # read in filtered data
-# fnameHS <- file.path(patient1_HS.path, "outs/filtered_feature_bc_matrix")
+# Pick your poison
 
-#pick your poison
-
-sces <- read_previous_data()
-#sces <- read_and_qc(6)
+# Option 1
 #sces <- read_10x()
+
+# Option 2
+#sces <- read_and_qc(6)
+
+# Option 3
+sces <- read_previous_data()
 
 ```
 
@@ -105,7 +100,15 @@ rownames(sce.patient2_HS) <- paste_rownames(sce.patient2_HS)
 rownames(sce.patient2_AK) <- paste_rownames(sce.patient2_AK)
 ```
 
-## Normalization & reduction
+We look at both the raw and unfiltered data from the cell ranger output, to see what yields the best results. For both data sets, we first ran them through our quality control function. Since the filtered data from 10X already has all the empty droplets removed, this step was skipped for them, but not for the raw data. In the following section we will quickly go over what steps we took in our quality control function and how we made sure they were sensible.
+
+The first step in our pipeline is to separate the antibody-derived tag (ADT) data from the remaining mRNA counts and clean them up. Ideally we'd like to identify the cells which failed to capture the ADTs and remove them. This step is usually done by removing cells with ADT counts less than or equal to half of the total number of tags, which leads to the lose of a huge number of cells in our case as shown in the summary output. We produced a plot showing the distribution of the number of detected ADTs and observed that most cells have negligeable ADT counts. The distribution of ADT count has smaller peak at around 50 though. From this plot we decided to change the threshold at which cells will be discarded to 25, to not throw away as many cells. But even with this change it seemed like to many cells were be discarded because of low quality ADT data. Therefore, we finally decided to ignore this part of the data completely.
+
+In the next step, the empty droplets were be removed. As mentioned before this only happens for the raw data. We ran the function emptyDrops() to do so, which tests if the counts of a cell are significantly different from the ambient mRNA pool. If it is not the case, then we're most likely facing an empty droplet. After looking at some summary statistics of the output of this function, we realized that there were non-significant cell barcodes, which were bounded by the number of iterations. We solved this issue by increasing the number of iterations (to 100'000) in emptyDrops(). There's also a plot showing the histogram of the p-values given by emptyDrops() which should be approximately uniform. It was luckily the case with our data. It is interesting to note that this part of the quality control pipeline is responsible for the most amount of discarded cells.
+
+Next we removed the dead cells, e.g. the cells with high mitochondrial gene expression. The approach we used was the same as introduced in the lecture. Lastly, we also removed cells which had low library sizes and detection rates. As seen in class, we used the perCellQCMetrics() and isOutlier() functions to do so. We also produced a plot showing the log-fold-change of the discarded vs. kept cells which helps investigating the possibility an entire cell type is accidentally discarded because of quality control. If that would be the case, we would observe an enrichment of a certain cell type in the discarded group, which can be identified by an increased expression of the corresponding marker genes.
+
+## Normalization and Reduction
 
 ```{r vst, include=FALSE}
 
