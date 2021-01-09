@@ -31,13 +31,15 @@ read_previous_data <- function() {
 }
 
 #read raw data and conduct QC
-read_and_qc <- function(cores=4)
+read_and_qc <- function(cores=4, read_raw_data=FALSE)
 {
   sces <- list()
-  sces[[1]] <- processCellRangerOutput("patient1_HS", 100000, TRUE, TRUE, FALSE, cores)
-  sces[[2]] <- processCellRangerOutput("patient1_SCC", 100000, TRUE, TRUE, FALSE, cores)
-  sces[[3]] <- processCellRangerOutput("patient2_HS", 100000, TRUE, TRUE, FALSE, cores)
-  sces[[4]] <- processCellRangerOutput("patient2_AK", 100000, TRUE, TRUE, FALSE, cores)
+  # third boolean argument indicates if we're reading 
+  # the raw data (TRUE) or the filtered data (FALSE) from 10x
+  sces[[1]] <- processCellRangerOutput("patient1_HS", 100000, TRUE, TRUE, read_raw_data, cores)
+  sces[[2]] <- processCellRangerOutput("patient1_SCC", 100000, TRUE, TRUE, read_raw_data, cores)
+  sces[[3]] <- processCellRangerOutput("patient2_HS", 100000, TRUE, TRUE, read_raw_data, cores)
+  sces[[4]] <- processCellRangerOutput("patient2_AK", 100000, TRUE, TRUE, read_raw_data, cores)
   return(sces)
 }
 
@@ -130,11 +132,6 @@ paste_rownames <- function(sceo) {
 annotate_cells <- function(sceo, go, genes) {
   kmo <- lapply(genes, FUN=function(go) grep(paste0(go, "$", collapse="|"), rownames(sceo), value=TRUE))
   
-  # TODO: try to modify this so that we don't have to convert the rownames anymore and use
-  # the marker names save in rowData(sceo)$Symbol directly
-  #kmo <- lapply(genes, FUN=function(go) grep(paste0(go, "$", collapse="|"), rowData(sceo)$Symbol, value=TRUE))
-  #print(kmo)
-  
   return(list(sceo, kmo))
 }
 
@@ -143,6 +140,9 @@ pseudobulk <- function(sceo, kmo) {
   pbo <- aggregateData(sceo, "logcounts", by=c("cluster"), fun="mean")
   
   # TODO : find a way to delete the left annotation which is unreadable
+  # tried hard, not sure if even possible.
+  # one solution is to get rid of the split completely
+  # i.e. delete the following argument from pheatmap: split=rep(names(kmo), lengths(kmo))
   
   # build a heatmap of the mean logcounts of the known markers:
   h <- pheatmap(assay(pbo)[unlist(kmo),], annotation_row=data.frame(row.names=unlist(kmo), type=rep(names(kmo), lengths(kmo))), split=rep(names(kmo), lengths(kmo)), annotation_names_row=F, cluster_rows=FALSE, scale="row", main=paste(attr(sceo, "name"),"before markers aggregation"), fontsize_row=6, fontsize_col=10, angle_col = "45")

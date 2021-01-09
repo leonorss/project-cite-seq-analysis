@@ -61,15 +61,24 @@ For the following chunk, three options are available. The filtered data provided
 ## data can be downloaded from : http://imlspenticton.uzh.ch/dump/files_for_levesque.tar
 
 # Pick your poison
+option_selected = 3
 
-# Option 1
-#sces <- read_10x()
-
-# Option 2
-#sces <- read_and_qc(6)
-
-# Option 3
-sces <- read_previous_data()
+# and let it begin
+switch(option_selected,
+       # Option 1: read filtered data from 10X without doing any QC
+       sces <- read_10x(), 
+       # Option 2:
+       # read_raw_data: if FALSE then filtered data will be read
+       # n_cores: numbers of cores to use (parallelization used to speed up emptyDrops function), 
+       # default is 4
+       {
+         read_raw_data = FALSE
+         n_cores = 4
+         sces <- read_and_qc(4, read_raw_data)
+       },
+       # Option 3:
+       sces <- read_previous_data(),
+)
 
 ```
 
@@ -383,7 +392,8 @@ sce.patient2_AK.fibro <- cluster_subtype(sce.patient2_AK, "fibroblast", known_ma
 ```
 
 
-#######################################################################################
+# Markers correspondance
+
 ```{r check_markers, eval=FALSE}
 # The following code was used to check which genes were missing from in the data
 # the known_markers are from the litterature
