@@ -196,6 +196,7 @@ known_markers <- c(genes$keratinocyte, genes$keratinocyte_basal, genes$keratinoc
 
 
 sce.patient1_HS <- norm_redu(sce.patient1_HS, 2000, known_markers)
+
 sce.patient1_SCC <- norm_redu(sce.patient1_SCC, 2000, known_markers)
 sce.patient2_HS <- norm_redu(sce.patient2_HS, 2000, known_markers)
 sce.patient2_AK <- norm_redu(sce.patient2_AK, 2000, known_markers)

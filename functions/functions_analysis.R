@@ -58,13 +58,6 @@ remove_rare_genes <- function(sceo, num_genes) {
   sceo <- sceo[(rowSums(counts(sceo) > 0) > num_genes),]
 }
 
-variance_stabilization <- function(sceo, ) {
-  
-
-  
-  return(sceo)
-}
-
 norm_redu <- function(sceo, num_genes, known_markers) {
   
   # Normalization
