@@ -157,6 +157,9 @@ pseudobulk <- function(sceo, kmo) {
   # we aggregate across markers of the same type
   mato <- aggregate(t(scale(t(mato))), by=list(type=rep(names(kmo), lengths(kmo))), FUN=sum)
   
+  #mato <- aggregate(t(scale(t(mato))), by=list(type=rep(names(kmo), lengths(kmo))), FUN=mean)
+  
+  
   # for each column (cluster), we select the row (cell type) which has the maximum aggregated value
   cl2o<- mato[,1][apply(mato[,-1], 2, FUN=which.max)]
   # we convert the cells' cluster labels to cell type labels:

@@ -43,6 +43,7 @@ suppressPackageStartupMessages({
 
 ```{r sourceCode,echo=TRUE}
 # set local path
+set.seed(11)
 local.path <- getwd()
 setwd(local.path)
 
@@ -223,7 +224,7 @@ genes <- list(
   # SCHWANN CELL
   schwann  = c("CDH19","NGFR"),
   # MITOTIC CELL
-  mitotic  = c("UBE2C","PCNA")
+  mitotic  = c("UBE2C","PCNA", "CDK1", "TOP2A")
 )
 
 results <- annotate_cells(sce.patient1_HS, g.patient1_HS, genes)
@@ -245,6 +246,11 @@ km.patient2_AK <- results[[2]]
 ```
 
 ## Pseudo-bulk aggregation
+
+One of the interesting biological questions is how the cell subtype composition changes between healthy skin and diseased skin. For this, simply extracted the cell subtypes for each sample and compare the proportion of cells for each subtype. A Fisher's exact test helps us verify that for this particular patient and collection method, the proportion of certain subtypes really differs among conditions.
+For Patient 1, it seems that their diseased skin (SCC) contains a far higher proportion of lymphocytes, endothelial cells and myleloid cells. Conversely, the proportion of keratinocytes is far lower.
+
+For Patient 2, the diseased skin (AK) cointains
 
 ```{r pseudo_bulk_aggregation}
 # Patient 1 HS
@@ -296,6 +302,8 @@ fisher_test_subtypes(sce.patient1_HS, sce.patient1_SCC, 'fibroblast')
 
 
 ```
+
+
 
 ## Sub-population clustering
 ```{r keratinocyte}
