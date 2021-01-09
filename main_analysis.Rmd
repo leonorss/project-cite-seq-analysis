@@ -357,7 +357,7 @@ genes.dyn <- list(
   # classification: https://www.sciencedirect.com/science/article/pii/S0092867420306723
   basal = genes$keratinocyte_basal[3], # we only select "COL17A1" marker to define the basal population
   cycling = genes$keratinocyte_cycling,
-  differentiating = genes$keratinocyte_differentiating
+  differentiating = genes$keratinocyte_suprabasal[1] # we only select "KRT1"
   )
 
 kera.dyn.patient1_HS <- dynamic_plot(sce.patient1_HS.kera, g.patient1_HS.kera, genes.dyn)
