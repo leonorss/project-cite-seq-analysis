@@ -224,7 +224,8 @@ genes <- list(
   # SCHWANN CELL
   schwann  = c("CDH19","NGFR"),
   # MITOTIC CELL
-  mitotic  = c("UBE2C","PCNA", "CDK1", "TOP2A")
+  #mitotic  = c("UBE2C","PCNA", "TOP2A", "CDK1")
+  mitotic  = c("UBE2C","PCNA", "CCNB1", "TOP2A")
 )
 
 results <- annotate_cells(sce.patient1_HS, g.patient1_HS, genes)
@@ -248,9 +249,12 @@ km.patient2_AK <- results[[2]]
 ## Pseudo-bulk aggregation
 
 One of the interesting biological questions is how the cell subtype composition changes between healthy skin and diseased skin. For this, simply extracted the cell subtypes for each sample and compare the proportion of cells for each subtype. A Fisher's exact test helps us verify that for this particular patient and collection method, the proportion of certain subtypes really differs among conditions.
-For Patient 1, it seems that their diseased skin (SCC) contains a far higher proportion of lymphocytes, endothelial cells and myleloid cells. Conversely, the proportion of keratinocytes is far lower.
 
-For Patient 2, the diseased skin (AK) cointains
+#Cell Subtype composition varies a lot.
+For Patient 1, it seems that their diseased skin (SCC) contains a far higher proportion of lymphocytes, endothelial cells and myleloid cells. Conversely, the proportion of keratinocytes is far lower. For Patient 2 with (AK), the lymphocytes is far higher, similar for fibroblasts and endothelial cells but lower for all other cell type when compared to healthy skin.
+
+#Mitotic Cells and Keratinocytes are hard to differentiate in Patient 2 with AK.
+When it comes to mitotic cells, the marker genes used to quantify mitotic cells play a significant role. Using the suggested marker genes from @scRNAseq, we find mitotic cells in both healthy samples, but not in the diseased samples (AK + SCC). We experimented with different marker genes for the mitotic cells, adding some we found in @hsiao_characterizing_2020, but since our clustering algorithm didn't find clusters different enough from each other, we are left with either labeling some cells as all mitotic or all keratinocytes for patient 2.
 
 ```{r pseudo_bulk_aggregation}
 # Patient 1 HS
