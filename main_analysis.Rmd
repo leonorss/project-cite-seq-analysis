@@ -84,7 +84,7 @@ For the following chunk, three options are available. The filtered data provided
 ## data can be downloaded from : http://imlspenticton.uzh.ch/dump/files_for_levesque.tar
 
 # Pick your poison
-option_selected = 3
+option_selected = 2
 
 # and let it begin
 switch(option_selected,
@@ -161,7 +161,6 @@ genes <- list(
   keratinocyte_sweat_gland  = c("DCD","AQP5"),
   # for dynamics, from https://www.sciencedirect.com/science/article/pii/S0092867420306723
   keratinocyte_cycling = c("MKI67"),
-  keratinocyte_differentiating = c("KRT1"),
   # FIBROBLAST
   fibroblast  = c("DCN","LUM","MMP2"),
   # fibroblast subclassification  from: https://www.nature.com/articles/s42003-020-0922-4#
@@ -236,9 +235,7 @@ cell_types <- c("Keratinocyte", "", "", "", "", "", "", "","","", "Fibroblast", 
 cell_subtypes <- c("", "basal", "suprabasal", "differentiated", "ORS", "channel", "sebaceous gland", "sweat gland","cycling", "differentiating", "", "secretory reticular", "proinflammatory", "secretory papillary", "mesenchymal", "", "pericyte", "vSMC", "", "lymphatic", "", "dendritic", "langerhans", "macrophage", "", "", "", "")
 
 markers <- c(paste("DSC3","DSP","LGALS7"), paste("KRT5","KRT14","COL17A1"), paste("KRT1","KRT10"), paste("LOR", "SPINK5"), paste("KRT6B"), paste("GJB2","GJB6","ATP1B1"), paste("MGST1","FASN"), paste("DCD","AQP5"), paste("MKI67"), paste("KRT1"), paste("DCN", "LUM","MMP2"), paste("SLPI","CTHRC1","MFAP5","TSPAN8"), paste("CCL19","APOE","CXCL2","CXCL3","EFEMP1"), paste("APCDD1","ID1","WIF1","COL18A1","PTGDS"), paste("ASPN","POSTN","GPC3","TNN","SFRP1"), paste("ACTA2","TAGLN"), paste("RGS5"), paste("MYL9","TPM2","RERGL"), paste("PECAM1","SELE","CLDN5","VWF"), paste("PROX1","LYVE1"), paste("HLA-DRA","FCER1G","TYROBP","AIF1"), paste("CD1C"), paste("CD207"), paste("CD68","RNASE1","ITGAX"), paste("CD3D","CD3E","CD52","IL7R"), paste("DCT","MLANA","PMEL"), paste("CDH19","NGFR"), paste("UBE2C","PCNA"))
-length(cell_types)
-length(cell_subtypes)
-length(markers)
+
 cell.df <- data.frame(Types=cell_types, Subtypes=cell_subtypes, Markers=markers)
 
 kable(cell.df)
