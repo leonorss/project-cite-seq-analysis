@@ -58,8 +58,16 @@ remove_rare_genes <- function(sceo, num_genes) {
   sceo <- sceo[(rowSums(counts(sceo) > 0) > num_genes),]
 }
 
-variance_stabilization <- function(sceo, num_genes) {
+variance_stabilization <- function(sceo, ) {
   
+
+  
+  return(sceo)
+}
+
+norm_redu <- function(sceo, num_genes, known_markers) {
+  
+  # Normalization
   sceo <- remove_rare_genes(sceo, 4)
   vsto <- suppressWarnings(sctransform::vst(counts(sceo)))
   logcounts(sceo, withDimnames=FALSE) <- vsto$y
@@ -67,10 +75,8 @@ variance_stabilization <- function(sceo, num_genes) {
   # Check that new assay was added to sce
   #assays(sce.patient1_HS)
   
-  return(sceo)
-}
-
-sc_PCA <- function(sceo, known_markers) {
+  # Reduction
+  
   # get highly-variable genes
   hvgo <- row.names(sceo)[order(vsto$gene_attr$residual_variance, decreasing=TRUE)[1:num_genes]]
   # only gives index of the first encountered
