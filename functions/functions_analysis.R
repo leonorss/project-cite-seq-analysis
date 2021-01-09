@@ -184,13 +184,9 @@ cluster_subtype <- function(sceo, cell_type, known_markers, subtype_markers) {
   sceo.sub <- sceo[,sceo$cluster2==cell_type]
   
   sceo.sub <- remove_rare_genes(sceo.sub, 4)
-  results <- variance_stabilization(sceo.sub, 2000)
-  
-  sceo.sub <- results[[1]]
-  hvgo.sub <- results[[2]]
   
   #---- run the pipeline again on that subdataset
-  sceo.sub <- sc_PCA(sceo.sub, hvgo.sub, known_markers)
+  sceo.sub <- norm_redu(sceo.sub, 2000, known_markers)
   
   #--- clustering
   
