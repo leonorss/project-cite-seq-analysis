@@ -132,24 +132,15 @@ Next we removed the dead cells, e.g. the cells with high mitochondrial gene expr
 
 In order to normalize our data, we first tried Library-Size normalization, which assumes that there is no “imbalance” in the differentially expressed (DE) genes between any pair of cells (@bioconductor). After observing that the separation of the clusters wasn't satisfying, we decided to use Variance Stabilizing Transformation (VST). VST helps in the sens that it manage to transform the data into a more gaussian-shaped distribution.
 
-TODO : reorganize and put hvg step in the next step (hvg is used for pca)
 ```{r vst, include=FALSE}
 
-results <- variance_stabilization(sce.patient1_HS, 2000)
-sce.patient1_HS <- results[[1]]
-hvg.patient1_HS <- results[[2]]
+sce.patient1_HS <- variance_stabilization(sce.patient1_HS, 2000)
 
-results <- variance_stabilization(sce.patient1_SCC, 2000)
-sce.patient1_SCC <- results[[1]]
-hvg.patient1_SCC <- results[[2]]
+sce.patient1_SCC <- variance_stabilization(sce.patient1_SCC, 2000)
 
-results <- variance_stabilization(sce.patient2_HS, 2000)
-sce.patient2_HS <- results[[1]]
-hvg.patient2_HS <- results[[2]]
+sce.patient2_HS <- variance_stabilization(sce.patient2_HS, 2000)
 
-results <- variance_stabilization(sce.patient2_AK, 2000)
-sce.patient2_AK <- results[[1]]
-hvg.patient2_AK <- results[[2]]
+sce.patient2_AK <- variance_stabilization(sce.patient2_AK, 2000)
 ```
 
 The markers found in the literature (@scRNAseq, @fibroblast) were used to separate the different cell types and their subtypes within them. A few markers didn't appear at all in our data (WISP2 \textit(Secretory-reticular fibroblast), SEPP1 \textit(Macrophage), TYP1 \textit(Melanocyte)) so the corresponding cell types were selected using their remaining markers present. Since those markers found in the literature are known to correlate with specific cell types, their genes were added to the list of high variable genes used to produce a lower dimensional representation of the data, even when their expression didn't vary enough to be selected as highly variable.
@@ -220,10 +211,10 @@ genes <- list(
 # Known markers: all the gene markers listed above
 known_markers <- c(genes$keratinocyte, genes$keratinocyte_basal, genes$keratinocyte_suprabasal, genes$keratinocyte_differentiated, genes$keratinocyte_ORS, genes$keratinocyte_channel, genes$keratinocyte_sebaceous_gland, genes$keratinocyte_sweat_gland, genes$fibroblast, genes$fibroblast_secretory_reticular, genes$fibroblast_proinflammatory, genes$fibroblast_secretory_papillary, genes$fibroblast_mesenchymal, genes$pericytevSMC, genes$pericytevSMC_pericyte, genes$pericytevSMC_vSMC, genes$endothelial, genes$endothelial_lymphatic, genes$myeloid, genes$myeloid_dendritic, genes$myeloid_langerhans, genes$myeloid_macrophage, genes$lymphocyte, genes$melanocyte, genes$schwann, genes$mitotic)
 
-sce.patient1_HS <- sc_PCA(sce.patient1_HS, hvg.patient1_HS, known_markers)
-sce.patient1_SCC <- sc_PCA(sce.patient1_SCC, hvg.patient1_SCC, known_markers)
-sce.patient2_HS <- sc_PCA(sce.patient2_HS, hvg.patient2_HS, known_markers)
-sce.patient2_AK <- sc_PCA(sce.patient2_AK, hvg.patient2_AK, known_markers)
+sce.patient1_HS <- sc_PCA(sce.patient1_HS, known_markers)
+sce.patient1_SCC <- sc_PCA(sce.patient1_SCC, known_markers)
+sce.patient2_HS <- sc_PCA(sce.patient2_HS, known_markers)
+sce.patient2_AK <- sc_PCA(sce.patient2_AK, known_markers)
 
 ```
 

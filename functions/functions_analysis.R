@@ -67,13 +67,12 @@ variance_stabilization <- function(sceo, num_genes) {
   # Check that new assay was added to sce
   #assays(sce.patient1_HS)
   
-  # get highly-variable genes
-  hvgo <- row.names(sceo)[order(vsto$gene_attr$residual_variance, decreasing=TRUE)[1:num_genes]]
-  results <- list("sceo" <- sceo, "hvgo" <- hvgo)
-  return(results)
+  return(sceo)
 }
 
-sc_PCA <- function(sceo, hvgo, known_markers) {
+sc_PCA <- function(sceo, known_markers) {
+  # get highly-variable genes
+  hvgo <- row.names(sceo)[order(vsto$gene_attr$residual_variance, decreasing=TRUE)[1:num_genes]]
   # only gives index of the first encountered
   known_genes <- rownames(sceo)[which(rowData(sceo)$Symbol %in% known_markers)]
   
