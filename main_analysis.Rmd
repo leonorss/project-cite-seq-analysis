@@ -295,10 +295,10 @@ cl2.patient2_AK <- results[[4]]
 
 # create barplots of cell type proportions
 df.celltypes.patient1 <- rbind(df_barplot_celltypes(sce.patient1_HS), df_barplot_celltypes(sce.patient1_SCC))
-df.celltypes.patient1$Type <- c("HS", "HS", "HS", "HS", "HS", "HS", "HS", "HS", "SCC", "SCC", "SCC", "SCC", "SCC", "SCC", "SCC", "SCC")
+df.celltypes.patient1$Type <- c(rep("HS", 8), rep("SCC", 8))
 
 df.celltypes.patient2 <- rbind(df_barplot_celltypes(sce.patient2_HS), df_barplot_celltypes(sce.patient2_AK))
-df.celltypes.patient2$Type <- c("HS", "HS", "HS", "HS", "HS", "HS", "HS", "HS", "AK", "AK", "AK", "AK", "AK", "AK", "AK", "AK")
+df.celltypes.patient2$Type <- c(rep("HS", 8), rep("AK", 8))
 
 dynamic_barplot(df.celltypes.patient1, "Patient 1", T, "Proportion of cell types in", c(HS ='#999999', SCC = '#E69F00'))
 dynamic_barplot(df.celltypes.patient2, "Patient 2", T, "Proportion of cell types in", c(HS ='#999999', AK = '#E69F00'))
