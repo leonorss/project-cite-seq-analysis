@@ -132,11 +132,11 @@ The markers found in the literature (@scRNAseq, @fibroblast) were used to separa
 
 ```{r gene_table, echo=FALSE}
 
-cell_types <- c("Keratinocyte", "", "", "", "", "", "", "", "Fibroblast", "", "", "", "", "Pericyte & vSMC", "", "", "Endothelial cell", "", "Myeloid", "", "", "", "Lymphocyte", "Melanocyte", "Schwann cell", "Mitotic cell")
+cell_types <- c("Keratinocyte", "", "", "", "", "", "", "","","", "Fibroblast", "", "", "", "", "Pericyte & vSMC", "", "", "Endothelial cell", "", "Myeloid", "", "", "", "Lymphocyte", "Melanocyte", "Schwann cell", "Mitotic cell")
 
-cell_subtypes <- c("", "basal", "suprabasal", "differentiated", "ORS", "channel", "sebaceous gland", "sweat gland", "", "secretory reticular", "proinflammatory", "secretory papillary", "mesenchymal", "", "pericyte", "vSMC", "", "lymphatic", "", "dendritic", "langerhans", "macrophage", "", "", "", "")
+cell_subtypes <- c("", "basal", "suprabasal", "differentiated", "ORS", "channel", "sebaceous gland", "sweat gland","cycling", "differentiating", "secretory reticular", "proinflammatory", "secretory papillary", "mesenchymal", "", "pericyte", "vSMC", "", "lymphatic", "", "dendritic", "langerhans", "macrophage", "", "", "", "")
 
-markers <- c(paste("DSC3","DSP","LGALS7"), paste("KRT5","KRT14","COL17A1"), paste("KRT1","KRT10"), paste("LOR", "SPINK5"), paste("KRT6B"), paste("GJB2","GJB6","ATP1B1"), paste("MGST1","FASN"), paste("DCD","AQP5"), paste("DCN", "LUM","MMP2"), paste("SLPI","CTHRC1","MFAP5","TSPAN8"), paste("CCL19","APOE","CXCL2","CXCL3","EFEMP1"), paste("APCDD1","ID1","WIF1","COL18A1","PTGDS"), paste("ASPN","POSTN","GPC3","TNN","SFRP1"), paste("ACTA2","TAGLN"), paste("RGS5"), paste("MYL9","TPM2","RERGL"), paste("PECAM1","SELE","CLDN5","VWF"), paste("PROX1","LYVE1"), paste("HLA-DRA","FCER1G","TYROBP","AIF1"), paste("CD1C"), paste("CD207"), paste("CD68","RNASE1","ITGAX"), paste("CD3D","CD3E","CD52","IL7R"), paste("DCT","MLANA","PMEL"), paste("CDH19","NGFR"), paste("UBE2C","PCNA"))
+markers <- c(paste("DSC3","DSP","LGALS7"), paste("KRT5","KRT14","COL17A1"), paste("KRT1","KRT10"), paste("LOR", "SPINK5"), paste("KRT6B"), paste("GJB2","GJB6","ATP1B1"), paste("MGST1","FASN"), paste("DCD","AQP5"), paste("MKI67"), paste("KRT1"), paste("DCN", "LUM","MMP2"), paste("SLPI","CTHRC1","MFAP5","TSPAN8"), paste("CCL19","APOE","CXCL2","CXCL3","EFEMP1"), paste("APCDD1","ID1","WIF1","COL18A1","PTGDS"), paste("ASPN","POSTN","GPC3","TNN","SFRP1"), paste("ACTA2","TAGLN"), paste("RGS5"), paste("MYL9","TPM2","RERGL"), paste("PECAM1","SELE","CLDN5","VWF"), paste("PROX1","LYVE1"), paste("HLA-DRA","FCER1G","TYROBP","AIF1"), paste("CD1C"), paste("CD207"), paste("CD68","RNASE1","ITGAX"), paste("CD3D","CD3E","CD52","IL7R"), paste("DCT","MLANA","PMEL"), paste("CDH19","NGFR"), paste("UBE2C","PCNA"))
 
 cell.df <- data.frame(Types=cell_types, Subtypes=cell_subtypes, Markers=markers)
 
@@ -161,7 +161,7 @@ genes <- list(
   keratinocyte_channel = c("GJB2","GJB6","ATP1B1"),
   keratinocyte_sebaceous_gland = c("MGST1","FASN"),
   keratinocyte_sweat_gland  = c("DCD","AQP5"),
-  # for dynamics
+  # for dynamics, from https://www.sciencedirect.com/science/article/pii/S0092867420306723
   keratinocyte_cycling = c("MKI67"),
   keratinocyte_differentiating = c("KRT1"),
   # FIBROBLAST
@@ -318,19 +318,15 @@ fisher_test_subtypes(sce.patient1_HS, sce.patient1_SCC, 'fibroblast')
 
 known_markers.kera <- c(genes$keratinocyte_basal, genes$keratinocyte_suprabasal, genes$keratinocyte_differentiated, genes$keratinocyte_ORS, genes$keratinocyte_channel, genes$keratinocyte_sebaceous_gland, genes$keratinocyte_sweat_gland)
 
-# TODO: modify so that we don't need the list below
-#annotate the subclusters
+# the following list is used to have prettier graph annotation
   genes.kera <- list(
-  # classification: https://www.sciencedirect.com/science/article/pii/S0923181120301985?via%3Dihub#bib0050
-    # KERATINOCYTE
-    #keratinocyte = c("DSC3","DSP","LGALS7"),
-    basal = c("KRT5","KRT14","COL17A1"),
-    suprabasal = c("KRT1","KRT10"),
-    differentiated = c("LOR", "SPINK5"),
-    ORS = c("KRT6B"),
-    channel = c("GJB2","GJB6","ATP1B1"),
-    sebaceous_gland = c("MGST1","FASN"),
-    sweat_gland  = c("DCD","AQP5")
+    basal = genes$keratinocyte_basal,
+    suprabasal = genes$keratinocyte_suprabasal,
+    differentiated = genes$keratinocyte_differentiated,
+    ORS = genes$keratinocyte_ORS,
+    channel =  genes$keratinocyte_channel,
+    sebaceous_gland = genes$keratinocyte_sebaceous_gland,
+    sweat_gland  = genes$keratinocyte_sweat_gland
     )
 
 sce.patient1_HS.kera <- cluster_subtype(sce.patient1_HS, "keratinocyte", known_markers.kera, genes.kera)
@@ -342,12 +338,12 @@ sce.patient2_AK.kera <- cluster_subtype(sce.patient2_AK, "keratinocyte", known_m
 
 ```{r keratinocyte_dynamics}
 
-# TODO: modify so that we don't need the list below
+# the following list is used to have prettier graph annotation
 genes.dyn <- list(
   # classification: https://www.sciencedirect.com/science/article/pii/S0092867420306723
-  keratinocyte_basal = "COL17A1",
-  keratinocyte_cycling = "MKI67",
-  keratinocyte_differentiating = "KRT1"
+  basal = genes$keratinocyte_basal[3], # we only select "COL17A1" marker to define the basal population
+  cycling = genes$keratinocyte_cycling,
+  differentiating = genes$keratinocyte_differentiating
   )
 
 kera.dyn.patient1_HS <- dynamic_plot(sce.patient1_HS.kera, g.patient1_HS.kera, genes.dyn)
@@ -356,10 +352,9 @@ kera.dyn.patient2_HS <- dynamic_plot(sce.patient2_HS.kera, g.patient2_HS.kera, g
 kera.dyn.patient2_AK <- dynamic_plot(sce.patient2_AK.kera, g.patient2_AK.kera, genes.dyn)
 
 kera.dyn.patient1 <- rbind(kera.dyn.patient1_HS, kera.dyn.patient1_SCC)
-kera.dyn.patient1$Type <- c("HS", "HS", "HS", "SCC", "SCC", "SCC")
-
+kera.dyn.patient1$Type <- c(rep("HS", 3), rep("SCC", 3))
 kera.dyn.patient2 <- rbind(kera.dyn.patient2_HS, kera.dyn.patient2_AK)
-kera.dyn.patient2$Type <- c("HS", "HS", "HS", "AK", "AK", "AK")
+kera.dyn.patient2$Type <- c(rep("HS", 3), rep("AK", 3))
 
 
 dynamic_barplot(kera.dyn.patient1, "Patient 1", F, "Proportion of Keratinocyte states in", c(HS ='#999999', SCC = '#E69F00'))
@@ -371,14 +366,13 @@ dynamic_barplot(kera.dyn.patient2, "Patient 2", F, "Proportion of Keratinocyte s
 
 known_markers.fibro <- c(genes$fibroblast_secretory_reticular, genes$fibroblast_proinflammatory, genes$fibroblast_secretory_papillary, genes$fibroblast_mesenchymal)
 
-# TODO: modify so that we don't need the list below
+# the following list is used to have prettier graph annotation
 genes.fibro <- list(
-   #fibroblast  = c("DCN","LUM","MMP2"),
    # fibroblast subclassification  from: https://www.nature.com/articles/s42003-020-0922-4#
-   fibroblast_secretory_reticular = c("SLPI","CTHRC1","MFAP5","TSPAN8"),
-   fibroblast_proinflammatory = c("CCL19","APOE","CXCL2","CXCL3","EFEMP1"),
-   fibroblast_secretory_papillary = c("APCDD1","ID1","WIF1","COL18A1","PTGDS"),
-   fibroblast_mesenchymal = c("ASPN","POSTN","GPC3","TNN","SFRP1")
+   secretory_reticular = genes$fibroblast_secretory_reticular,
+   proinflammatory = genes$fibroblast_proinflammatory,
+   secretory_papillary = genes$fibroblast_secretory_papillary,
+   mesenchymal = genes$fibroblast_mesenchymal
 )
 
 sce.patient1_HS.fibro <- cluster_subtype(sce.patient1_HS, "fibroblast", known_markers.fibro, genes.fibro)
