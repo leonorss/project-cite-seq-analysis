@@ -246,7 +246,7 @@ kable(cell.df)
 
 ```{r cluster_annotation}
 genes_type <- list(keratinocyte = genes$keratinocyte, 
-                   fibroblast = genes$fibroblasts, 
+                   fibroblast = genes$fibroblast, 
                    pericytevSMC = genes$pericytevSMC, 
                    endothelial = genes$endothelial, 
                    myeloid = genes$myeloid, 
