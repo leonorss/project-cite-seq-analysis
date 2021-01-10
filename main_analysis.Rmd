@@ -212,6 +212,8 @@ sce.patient2_AK <- norm_redu(sce.patient2_AK, 2000, known_markers)
 
 # Clustering
 
+In order to label each cell by its type in a meaningfull way, we used the low-dimensionality representation we just produced and build a KNN graph from it. Chosing $k=30$ means that each cell is connected to its 30 closest cells. Once we have a graph, we can use the cluster_louvain function which is based on the modularity measure and a hierachical approach to find community structure of the data (https://www.rdocumentation.org/packages/igraph/versions/1.2.6/topics/cluster_louvain). At this stage, the data are clustered based only on their structure, not on their specific markers. To make the link from one cluster to a cell type, we aggregate the gene expression level of cells within a cluster to get a single value (c.f. Heatmaps) This aggregation summarizes the relative expression of each known markers for each cluster. The next step is to bring clusters having the same expression profile under the same cell type label. There is most likely room for improvement here, for instance clusters with no strong expression for any of the known markers could be left out or labelled as undefined. The assumption is that well defined cell outnumber the badly defined ones, giving meaningful statistical results in the end. Once the major cell types are identified, we took a look at the keratinocyte and fibroblast subtypes using the same steps but on those specific subsets.
+
 ```{r clustering}
 
 results <- sc_cluster(sce.patient1_HS)
