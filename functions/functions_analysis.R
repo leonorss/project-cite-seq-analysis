@@ -157,7 +157,13 @@ pseudobulk <- function(sceo, kmo) {
   # i.e. delete the following argument from pheatmap: split=rep(names(kmo), lengths(kmo))
   
   # build a heatmap of the mean logcounts of the known markers:
-  h <- pheatmap(assay(pbo)[unlist(kmo),], annotation_row=data.frame(row.names=unlist(kmo), type=rep(names(kmo), lengths(kmo))), split=rep(names(kmo), lengths(kmo)), annotation_names_row=F, cluster_rows=FALSE, scale="row", main=paste(attr(sceo, "name"),"before markers aggregation"), fontsize_row=6, fontsize_col=10, angle_col = "45")
+  #h <- pheatmap(assay(pbo)[unlist(kmo),], annotation_row=data.frame(row.names=unlist(kmo), type=rep(names(kmo), lengths(kmo))), split=rep(names(kmo), lengths(kmo)), annotation_names_row=F, cluster_rows=FALSE, scale="row", main=paste(attr(sceo, "name"),"before markers aggregation"), fontsize_row=6, fontsize_col=10, angle_col = "45")
+  co        <- c("aliceblue", "aquamarine4", "antiquewhite4", "brown", "black", "coral3", "cornflowerblue", "darkorange2", "darkgoldenrod1")
+  co <- co[1:length(kmo)]
+  names(co) <- unique((data.frame(row.names=unlist(kmo), type=rep(names(kmo), lengths(kmo))))$type)
+  anno_colors <- list(type = co)
+  h <- pheatmap(assay(pbo)[unlist(kmo),], annotation_row=data.frame(row.names=unlist(kmo), type=rep(names(kmo), lengths(kmo))), gaps_row=cumsum(lengths(kmo)), annotation_colors = anno_colors, annotation_names_row=F, cluster_rows=FALSE, scale="row", main=paste(attr(sceo, "name"),"before markers aggregation"), fontsize_row=6, fontsize_col=10, angle_col = "45")
+ 
   print(h)
   
   #--- aggregation markers
@@ -183,7 +189,7 @@ pseudobulk <- function(sceo, kmo) {
   # we plot again the expression of the markers as a sanity check
   
   # If we want to hide the gene markers show_rownames = FALSE
-  h1 <- pheatmap(assay(pbo)[unlist(kmo),], annotation_row=data.frame(row.names=unlist(kmo), type=rep(names(kmo), lengths(kmo))), split=rep(names(kmo), lengths(kmo)), annotation_names_row=F, cluster_rows=FALSE, scale="row", main=paste(attr(sceo, "name"),"after markers aggregation"), fontsize_row=6, fontsize_col=10, angle_col = "45")
+  h1 <- pheatmap(assay(pbo)[unlist(kmo),], annotation_row=data.frame(row.names=unlist(kmo), type=rep(names(kmo), lengths(kmo))), gaps_row=cumsum(lengths(kmo)), annotation_colors = anno_colors, annotation_names_row=F, cluster_rows=FALSE, scale="row", main=paste(attr(sceo, "name"),"after markers aggregation"), fontsize_row=6, fontsize_col=10, angle_col = "45")
   print(h1)
   
   # UMAP plot
@@ -232,7 +238,12 @@ dynamic_plot <- function(sceo, go, genes) {
   # mean logcounts by cluster:
   pbo <- aggregateData(sceo, "logcounts", by=c("cluster"), fun="mean")
   lengths(kmo)
-  h <- pheatmap(assay(pbo)[unlist(kmo),], annotation_row=data.frame(row.names=unlist(kmo), type=rep(names(kmo), lengths(kmo))), split=rep(names(kmo), lengths(kmo)), cluster_rows=FALSE, scale="row", main="Before markers aggregation", fontsize_row=6, fontsize_col=10)
+  
+  co        <- c("aliceblue", "aquamarine4", "antiquewhite4", "brown", "black", "coral3", "cornflowerblue", "darkorange2", "darkgoldenrod1")
+  co <- co[1:length(kmo)]
+  names(co) <- unique((data.frame(row.names=unlist(kmo), type=rep(names(kmo), lengths(kmo))))$type)
+  anno_colors <- list(type = co)
+  h <- pheatmap(assay(pbo)[unlist(kmo),], annotation_row=data.frame(row.names=unlist(kmo), type=rep(names(kmo), lengths(kmo))), gaps_row=cumsum(lengths(kmo)), annotation_colors = anno_colors, cluster_rows=FALSE, scale="row", main="Before markers aggregation", fontsize_row=6, fontsize_col=10)
   h
   
   # we will assign clusters to the cell type whose markers are the most expressed
@@ -253,7 +264,7 @@ dynamic_plot <- function(sceo, go, genes) {
   # we aggregate again to pseudo-bulk using the new clusters
   pbo <- aggregateData(sceo, "logcounts", by=c("cluster3"), fun="mean")
   # we plot again the expression of the markers as a sanity check
-  h1 <- pheatmap(assay(pbo)[unlist(kmo),], annotation_row=data.frame(row.names=unlist(kmo), type=rep(names(kmo), lengths(kmo))), split=rep(names(kmo), lengths(kmo)), cluster_rows=FALSE, scale="row", main="After markers aggregation", fontsize_row=6, fontsize_col=10) #, scale="row", main="After markers aggregation", fontsize_row=6, fontsize_col=10)
+  h1 <- pheatmap(assay(pbo)[unlist(kmo),], annotation_row=data.frame(row.names=unlist(kmo), type=rep(names(kmo), lengths(kmo))), gaps_row=cumsum(lengths(kmo)), annotation_colors = anno_colors, cluster_rows=FALSE, scale="row", main="After markers aggregation", fontsize_row=6, fontsize_col=10) #, scale="row", main="After markers aggregation", fontsize_row=6, fontsize_col=10)
   h1
   plotUMAP(sceo, colour_by="cluster3", text_by="cluster3", point_size=1)
   
