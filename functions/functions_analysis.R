@@ -13,11 +13,11 @@ read_10x <- function(use_raw_data = TRUE) {
   patient1_SCC.path <- file.path("data", "patient1_SCC")
   patient2_HS.path <- file.path("data", "patient2_HS")
   patient2_AK.path <- file.path("data", "patient2_AK")
-  
-  
+
+
   # read in filtered data and create list of SingleCellExperiment objects
   paths <- list(patient1_HS.path, patient1_SCC.path, patient2_HS.path, patient2_AK.path)
-  
+
   if (use_raw_data) {
     sces <- lapply(paths, function(i) read10xCounts(file.path(i, "outs/raw_feature_bc_matrix"), col.names = TRUE))
   } else {
@@ -48,7 +48,7 @@ read_previous_data <- function(read_raw_filtered_data=FALSE) {
 read_and_qc <- function(cores=4, read_raw_data=FALSE)
 {
   sces <- list()
-  # third boolean argument indicates if we're reading 
+  # third boolean argument indicates if we're reading
   # the raw data (TRUE) or the filtered data (FALSE) from 10x
   sces[[1]] <- processCellRangerOutput("patient1_HS", 100000, TRUE, TRUE, read_raw_data, cores)
   sces[[2]] <- processCellRangerOutput("patient1_SCC", 100000, TRUE, TRUE, read_raw_data, cores)
@@ -61,7 +61,7 @@ read_and_qc <- function(cores=4, read_raw_data=FALSE)
 split_data <- function(sceo) {
   # Split the data, store ADT in alternative experiment
   sceo <- splitAltExps(sceo, rowData(sceo)$Type)
-  
+
   # Coerce sparse matrix for ADT into a dense matrix
   counts(altExp(sceo)) <- as.matrix(counts(altExp(sceo)))
   sceo
@@ -73,44 +73,44 @@ remove_rare_genes <- function(sceo, num_genes) {
 }
 
 norm_redu <- function(sceo, num_genes, known_markers) {
-  
+
   # Normalization
   sceo <- remove_rare_genes(sceo, 4)
   vsto <- suppressWarnings(sctransform::vst(counts(sceo)))
   logcounts(sceo, withDimnames=FALSE) <- vsto$y
-  
+
   # Check that new assay was added to sce
   #assays(sce.patient1_HS)
-  
+
   # Reduction
-  
+
   # get highly-variable genes
   hvgo <- row.names(sceo)[order(vsto$gene_attr$residual_variance, decreasing=TRUE)[1:num_genes]]
   # only gives index of the first encountered
   known_genes <- rownames(sceo)[which(rowData(sceo)$Symbol %in% known_markers)]
-  
+
   # Check that the genes we know are also part of the highly variable genes
   idx_notfound <- which(!(known_genes %in% hvgo))
-  
+
   # print the markers that were not found in the data
   #known_markers[idx_notfound]
-  
+
   # if some of the known markers were not selected, add them
   if (length(idx_notfound) > 0) {
     cat("Adding", known_markers[idx_notfound], "to the gene set used for PCA in", attr(sceo, "name"), "\n")
     hvgo <- c(hvgo, known_genes[idx_notfound])
   }
-  
+
   # using highly variable genes
   sceo <- runPCA(sceo, subset_row=hvgo)
-  
+
   # check the variance explained by the PCs:
   pc.var <- attr(reducedDim(sceo),"percentVar")
   plot(pc.var, xlab="PCs", ylab="% variance explained", main=paste("Variance explained across PCs for", attr(sceo, "name")))
-  
+
   # restrict to the first 20 components:
   reducedDim(sceo) <- reducedDim(sceo)[,1:20]
-  
+
   # run TSNE and UMAP based on the PCA:
   sceo <- runTSNE(sceo, dimred="PCA")
   sceo <- runUMAP(sceo, dimred="PCA")
@@ -118,18 +118,18 @@ norm_redu <- function(sceo, num_genes, known_markers) {
 
 sc_cluster <- function(sceo, k=30) {
   go <- buildKNNGraph(sceo, BNPARAM=AnnoyParam(), use.dimred="PCA", k=k)
-  
+
   sceo$cluster <- as.factor(cluster_louvain(go)$membership)
-  
-  #plots <- plot_grid( plotTSNE(sceo, colour_by="cluster", text_by="cluster") + ggtitle(attr(sceo, "name")), plotUMAP(sceo, colour_by="cluster", text_by="cluster") + ggtitle(attr(sceo, "name")) ) 
-  
-  plots <- plot_grid( 
-    plotTSNE(sceo, colour_by="cluster", text_by="cluster"), 
+
+  #plots <- plot_grid( plotTSNE(sceo, colour_by="cluster", text_by="cluster") + ggtitle(attr(sceo, "name")), plotUMAP(sceo, colour_by="cluster", text_by="cluster") + ggtitle(attr(sceo, "name")) )
+
+  plots <- plot_grid(
+    plotTSNE(sceo, colour_by="cluster", text_by="cluster"),
     plotUMAP(sceo, colour_by="cluster", text_by="cluster"))
   title <- ggdraw() + draw_label(attr(sceo, "name"), fontface='bold')
   plots <- plot_grid(title, plots, ncol=1, rel_heights=c(0.1, 1))
   print(plots)
-  
+
   return(list(sceo, go))
 }
 
@@ -143,125 +143,136 @@ paste_rownames <- function(sceo) {
 
 annotate_cells <- function(sceo, go, genes) {
   kmo <- lapply(genes, FUN=function(go) grep(paste0(go, "$", collapse="|"), rownames(sceo), value=TRUE))
-  
+
   return(list(sceo, kmo))
 }
 
 # mean logcounts by cluster
 pseudobulk <- function(sceo, kmo) {
   pbo <- aggregateData(sceo, "logcounts", by=c("cluster"), fun="mean")
-  
+
   # TODO : find a way to delete the left annotation which is unreadable
   # tried hard, not sure if even possible.
   # one solution is to get rid of the split completely
   # i.e. delete the following argument from pheatmap: split=rep(names(kmo), lengths(kmo))
-  
+
   # build a heatmap of the mean logcounts of the known markers:
-  h <- pheatmap(assay(pbo)[unlist(kmo),], annotation_row=data.frame(row.names=unlist(kmo), type=rep(names(kmo), lengths(kmo))), split=rep(names(kmo), lengths(kmo)), annotation_names_row=F, cluster_rows=FALSE, scale="row", main=paste(attr(sceo, "name"),"before markers aggregation"), fontsize_row=6, fontsize_col=10, angle_col = "45")
+  #h <- pheatmap(assay(pbo)[unlist(kmo),], annotation_row=data.frame(row.names=unlist(kmo), type=rep(names(kmo), lengths(kmo))), split=rep(names(kmo), lengths(kmo)), annotation_names_row=F, cluster_rows=FALSE, scale="row", main=paste(attr(sceo, "name"),"before markers aggregation"), fontsize_row=6, fontsize_col=10, angle_col = "45")
+  co        <- c("aliceblue", "aquamarine4", "antiquewhite4", "brown", "black", "coral3", "cornflowerblue", "darkorange2", "darkgoldenrod1")
+  co <- co[1:length(kmo)]
+  names(co) <- unique((data.frame(row.names=unlist(kmo), type=rep(names(kmo), lengths(kmo))))$type)
+  anno_colors <- list(type = co)
+  h <- pheatmap(assay(pbo)[unlist(kmo),], annotation_row=data.frame(row.names=unlist(kmo), type=rep(names(kmo), lengths(kmo))), gaps_row=cumsum(lengths(kmo)), annotation_colors = anno_colors, annotation_names_row=F, cluster_rows=FALSE, scale="row", main=paste(attr(sceo, "name"),"before markers aggregation"), fontsize_row=6, fontsize_col=10, angle_col = "45")
+
   print(h)
-  
+
   #--- aggregation markers
   # we will assign clusters to the cell type whose markers are the most expressed
-  
+
   # we extract the pseudo-bulk counts of the markers for each cluster
   mato <- assay(pbo)[unlist(kmo),]
-  
+
   # we aggregate across markers of the same type
   mato <- aggregate(t(scale(t(mato))), by=list(type=rep(names(kmo), lengths(kmo))), FUN=sum)
-  
+
   #mato <- aggregate(t(scale(t(mato))), by=list(type=rep(names(kmo), lengths(kmo))), FUN=mean)
-  
-  
+
+
   # for each column (cluster), we select the row (cell type) which has the maximum aggregated value
   cl2o<- mato[,1][apply(mato[,-1], 2, FUN=which.max)]
   # we convert the cells' cluster labels to cell type labels:
   sceo$cluster2 <- cl2o[sceo$cluster]
-  
+
   # we aggregate again to pseudo-bulk using the new clusters
   pbo <- aggregateData(sceo, "logcounts", by=c("cluster2"), fun="mean")
-  
+
   # we plot again the expression of the markers as a sanity check
-  
+
   # If we want to hide the gene markers show_rownames = FALSE
-  h1 <- pheatmap(assay(pbo)[unlist(kmo),], annotation_row=data.frame(row.names=unlist(kmo), type=rep(names(kmo), lengths(kmo))), split=rep(names(kmo), lengths(kmo)), annotation_names_row=F, cluster_rows=FALSE, scale="row", main=paste(attr(sceo, "name"),"after markers aggregation"), fontsize_row=6, fontsize_col=10, angle_col = "45")
+  h1 <- pheatmap(assay(pbo)[unlist(kmo),], annotation_row=data.frame(row.names=unlist(kmo), type=rep(names(kmo), lengths(kmo))), gaps_row=cumsum(lengths(kmo)), annotation_colors = anno_colors, annotation_names_row=F, cluster_rows=FALSE, scale="row", main=paste(attr(sceo, "name"),"after markers aggregation"), fontsize_row=6, fontsize_col=10, angle_col = "45")
   print(h1)
-  
+
   # UMAP plot
   p <- plotUMAP(sceo, colour_by="cluster2", text_by="cluster2", point_size=1) + ggtitle(attr(sceo, "name")) + theme(legend.title=element_blank())
   print(p)
-  
+
   return(list(sceo, pbo, mato, cl2o))
 }
 
 cluster_subtype <- function(sceo, cell_type, known_markers, subtype_markers) {
   # select the cell labeled as 'cell type', i.e. keratinocytes in the previous step
   sceo.sub <- sceo[,sceo$cluster2==cell_type]
-  
+
   #sceo.sub <- remove_rare_genes(sceo.sub, 4)
-  
+
   #---- run the pipeline again on that subdataset
   sceo.sub <- norm_redu(sceo.sub, 2000, known_markers)
-  
+
   #--- clustering
-  
+
   results <- sc_cluster(sceo.sub)
   sceo.sub <- results[[1]]
   go.sub <- results[[2]]
-  
+
   print(go.sub)
-  
+
   results <- annotate_cells(sceo.sub, go.sub, subtype_markers)
-  
+
   sceo.sub <- results[[1]]
   kmo.sub <- results[[2]]
-  
+
   #---
-  
+
   results <- pseudobulk(sceo.sub, kmo.sub)
-  
-  
-  
+
+
+
   sceo.sub <- results[[1]]
   pbo.sub <- results[[2]]
   mato.sub <- results[[3]]
   cl2o.sub <- results[[4]]
 
   return(list(sceo.sub, go.sub))
-  
+
 }
 
 dynamic_plot <- function(sceo, go, genes) {
   kmo <- lapply(genes, FUN=function(go) grep(paste0(go, "$", collapse="|"), rownames(sceo), value=TRUE))
-  
+
   # mean logcounts by cluster:
   pbo <- aggregateData(sceo, "logcounts", by=c("cluster"), fun="mean")
   lengths(kmo)
-  h <- pheatmap(assay(pbo)[unlist(kmo),], annotation_row=data.frame(row.names=unlist(kmo), type=rep(names(kmo), lengths(kmo))), split=rep(names(kmo), lengths(kmo)), cluster_rows=FALSE, scale="row", main="Before markers aggregation", fontsize_row=6, fontsize_col=10)
+
+  co        <- c("aliceblue", "aquamarine4", "antiquewhite4", "brown", "black", "coral3", "cornflowerblue", "darkorange2", "darkgoldenrod1")
+  co <- co[1:length(kmo)]
+  names(co) <- unique((data.frame(row.names=unlist(kmo), type=rep(names(kmo), lengths(kmo))))$type)
+  anno_colors <- list(type = co)
+  h <- pheatmap(assay(pbo)[unlist(kmo),], annotation_row=data.frame(row.names=unlist(kmo), type=rep(names(kmo), lengths(kmo))), gaps_row=cumsum(lengths(kmo)), annotation_colors = anno_colors, cluster_rows=FALSE, scale="row", main="Before markers aggregation", fontsize_row=6, fontsize_col=10)
   print(h)
-  
+
   # we will assign clusters to the cell type whose markers are the most expressed
   # we extract the pseudo-bulk counts of the markers for each cluster
   mato <- assay(pbo)[unlist(kmo),]
-  
+
   # we aggregate across markers of the same type
   mato <- aggregate(t(scale(t(mato))), by=list(type=rep(names(kmo), lengths(kmo))), FUN=sum)
-  
+
   # for each column (cluster), we select the row (cell type) which has the maximum aggregated value
   cl3o <- mato[,1][apply(mato[,-1], 2, FUN=which.max)]
-  
+
   # we convert the cells' cluster labels to cell type labels:
   sceo$cluster3 <- cl3o[sceo$cluster]
-  
+
   print(sceo)
-  
+
   # we aggregate again to pseudo-bulk using the new clusters
   pbo <- aggregateData(sceo, "logcounts", by=c("cluster3"), fun="mean")
   # we plot again the expression of the markers as a sanity check
-  h1 <- pheatmap(assay(pbo)[unlist(kmo),], annotation_row=data.frame(row.names=unlist(kmo), type=rep(names(kmo), lengths(kmo))), split=rep(names(kmo), lengths(kmo)), cluster_rows=FALSE, scale="row", main="After markers aggregation", fontsize_row=6, fontsize_col=10) #, scale="row", main="After markers aggregation", fontsize_row=6, fontsize_col=10)
+  h1 <- pheatmap(assay(pbo)[unlist(kmo),], annotation_row=data.frame(row.names=unlist(kmo), type=rep(names(kmo), lengths(kmo))), gaps_row=cumsum(lengths(kmo)), annotation_colors = anno_colors, cluster_rows=FALSE, scale="row", main="After markers aggregation", fontsize_row=6, fontsize_col=10) #, scale="row", main="After markers aggregation", fontsize_row=6, fontsize_col=10)
   h1
   plotUMAP(sceo, colour_by="cluster3", text_by="cluster3", point_size=1)
-  
-  
+
+
   #---- Histograms
   total <- ncol(sceo)
   basal <- ncol(sceo[,sceo$cluster3=="basal"])
@@ -271,19 +282,19 @@ dynamic_plot <- function(sceo, go, genes) {
   proportion <- counts/total
   kera.dyn <- data.frame(names=c("Basal", "Cycling", "Differentiating"), proportion=proportion)
   kera.dyn
-  
+
   #p <- ggplot(data=kera.dyn, aes(x=names, y=percentage, fill=names)) + geom_bar(stat="identity") + labs(title=paste("Proportion of Keratinocyte states in", attr(sceo, "name")),x="Subtypes", y="Percentage") + ylim(0,1) + theme(legend.position='none')
   #print(p)
-  
+
   return(kera.dyn)
-  
+
 }
 
 # create data frame to make barplot of celltypes
 df_barplot_celltypes <- function(sceo, return_prop=TRUE){
-  
+
   total <- ncol(sceo)
-  
+
   keratinocyte <- ncol(sceo[, sceo$cluster2=="keratinocyte"])
   fibroblast <- ncol(sceo[, sceo$cluster2=="fibroblast"])
   endothelial <- ncol(sceo[, sceo$cluster2=="endothelial"])
@@ -292,57 +303,55 @@ df_barplot_celltypes <- function(sceo, return_prop=TRUE){
   melanocyte <- ncol(sceo[, sceo$cluster2=="melanocyte"])
   schwann <- ncol(sceo[, sceo$cluster2=="schwann"])
   mitotic <- ncol(sceo[, sceo$cluster2=="mitotic"])
-  
+
   counts <- c(keratinocyte, fibroblast, endothelial, myeloid, lymphocyte, melanocyte, schwann, mitotic)
-  
+
   if(return_prop) {
     proportion <- counts/total
-    
+
     df.celltypes <- data.frame(names=c("keratinocyte", "fibroblast", "endothelial", "myeloid", "lymphocyte", "melanocyte", "schwann", "mitotic"), proportion=proportion)
   }
   else {
     df.celltypes <- data.frame(names=c("keratinocyte", "fibroblast", "endothelial", "myeloid", "lymphocyte", "melanocyte", "schwann", "mitotic"), counts)
   }
   return(df.celltypes)
-  
+
 }
 
 
 fisher_test_subtypes <- function(sce1, sce2, subtype) {
   cell_counts_sce1 <- df_barplot_celltypes(sce1, FALSE)
   cell_counts_sce2 <- df_barplot_celltypes(sce2, FALSE)
-  
+
   num_subtype_sample1 <- sum(cell_counts_sce1[cell_counts_sce1$names == subtype,][2])
   num_non_subtype_sample1 <- sum(cell_counts_sce1[cell_counts_sce1$names != subtype,][2])
   num_subtype_sample2 <- sum(cell_counts_sce2[cell_counts_sce2$names == subtype,][2])
   num_non_subtype_sample2 <- sum(cell_counts_sce2[cell_counts_sce2$names != subtype,][2])
-  
+
   subtype_matrix <- matrix(c(num_subtype_sample1, num_non_subtype_sample1, num_subtype_sample2, num_non_subtype_sample2), nrow=2)
-  
+
   fisher.test(subtype_matrix)
-  
+
 }
 
 # create comparable barplot of cell composition in healthy vs. disease
 dynamic_barplot <- function(df, name, labels, title, colors){
-  
+
   p <- ggplot2.barplot(data=df, xName="names", yName="proportion",
-                       groupName="Type", 
+                       groupName="Type",
                        position=position_dodge(),
                        #background and line colors
-                       backgroundColor="white", color="black", 
-                       xtitle="Subtypes", ytitle="Proportion", 
+                       backgroundColor="white", color="black",
+                       xtitle="Subtypes", ytitle="Proportion",
                        mainTitle=paste(title, name),
                        removePanelGrid=TRUE, removePanelBorder=TRUE,
                        axisLine=c(0.5, "solid", "black"),
                        groupColors=colors,
                        angle_col = "45"
-  ) 
+  )
   if (isTRUE(labels)){
     p <- p + theme(text = element_text(size=7),
-                   axis.text.x = element_text(angle=90, hjust=1)) 
+                   axis.text.x = element_text(angle=90, hjust=1))
   }
   print(p)
 }
-
-
