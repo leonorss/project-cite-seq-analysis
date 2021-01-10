@@ -364,10 +364,22 @@ known_markers.kera <- c(genes$keratinocyte_basal, genes$keratinocyte_suprabasal,
     sweat_gland  = genes$keratinocyte_sweat_gland
     )
 
-sce.patient1_HS.kera <- cluster_subtype(sce.patient1_HS, "keratinocyte", known_markers.kera, genes.kera)
-sce.patient1_SCC.kera <- cluster_subtype(sce.patient1_SCC, "keratinocyte", known_markers.kera, genes.kera)
-sce.patient2_HS.kera <- cluster_subtype(sce.patient2_HS, "keratinocyte", known_markers.kera, genes.kera)
-sce.patient2_AK.kera <- cluster_subtype(sce.patient2_AK, "keratinocyte", known_markers.kera, genes.kera)
+
+  results <-   cluster_subtype(sce.patient1_HS, "keratinocyte", known_markers.kera, genes.kera)
+  sce.patient1_HS.kera <- results[[1]]
+  g.patient1_HS.kera <- results[[2]]
+  
+  results <-   cluster_subtype(sce.patient1_SCC, "keratinocyte", known_markers.kera, genes.kera)
+  sce.patient1_SCC.kera <- results[[1]]
+  g.patient1_SCC.kera <- results[[2]]
+  
+  results <-   cluster_subtype(sce.patient2_HS, "keratinocyte", known_markers.kera, genes.kera)
+  sce.patient2_HS.kera <- results[[1]]
+  g.patient2_HS.kera <- results[[2]]
+  
+  results <-   cluster_subtype(sce.patient2_AK, "keratinocyte", known_markers.kera, genes.kera)
+  sce.patient2_AK.kera <- results[[1]]
+  g.patient2_AK.kera <- results[[2]]
 
 ```
 

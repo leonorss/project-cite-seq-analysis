@@ -197,7 +197,7 @@ cluster_subtype <- function(sceo, cell_type, known_markers, subtype_markers) {
   # select the cell labeled as 'cell type', i.e. keratinocytes in the previous step
   sceo.sub <- sceo[,sceo$cluster2==cell_type]
   
-  sceo.sub <- remove_rare_genes(sceo.sub, 4)
+  #sceo.sub <- remove_rare_genes(sceo.sub, 4)
   
   #---- run the pipeline again on that subdataset
   sceo.sub <- norm_redu(sceo.sub, 2000, known_markers)
@@ -208,6 +208,8 @@ cluster_subtype <- function(sceo, cell_type, known_markers, subtype_markers) {
   sceo.sub <- results[[1]]
   go.sub <- results[[2]]
   
+  print(go.sub)
+  
   results <- annotate_cells(sceo.sub, go.sub, subtype_markers)
   
   sceo.sub <- results[[1]]
@@ -217,12 +219,14 @@ cluster_subtype <- function(sceo, cell_type, known_markers, subtype_markers) {
   
   results <- pseudobulk(sceo.sub, kmo.sub)
   
+  
+  
   sceo.sub <- results[[1]]
   pbo.sub <- results[[2]]
   mato.sub <- results[[3]]
   cl2o.sub <- results[[4]]
-  
-  return(sceo.sub)
+
+  return(list(sceo.sub, go.sub))
   
 }
 
@@ -233,7 +237,7 @@ dynamic_plot <- function(sceo, go, genes) {
   pbo <- aggregateData(sceo, "logcounts", by=c("cluster"), fun="mean")
   lengths(kmo)
   h <- pheatmap(assay(pbo)[unlist(kmo),], annotation_row=data.frame(row.names=unlist(kmo), type=rep(names(kmo), lengths(kmo))), split=rep(names(kmo), lengths(kmo)), cluster_rows=FALSE, scale="row", main="Before markers aggregation", fontsize_row=6, fontsize_col=10)
-  h
+  print(h)
   
   # we will assign clusters to the cell type whose markers are the most expressed
   # we extract the pseudo-bulk counts of the markers for each cluster
@@ -260,9 +264,9 @@ dynamic_plot <- function(sceo, go, genes) {
   
   #---- Histograms
   total <- ncol(sceo)
-  basal <- ncol(sceo[,sceo$cluster3=="keratinocyte_basal"])
-  cycling <- ncol(sceo[,sceo$cluster3=="keratinocyte_cycling"])
-  diff <- ncol(sceo[,sceo$cluster3=="keratinocyte_differentiating"])
+  basal <- ncol(sceo[,sceo$cluster3=="basal"])
+  cycling <- ncol(sceo[,sceo$cluster3=="cycling"])
+  diff <- ncol(sceo[,sceo$cluster3=="differentiating"])
   counts <- c(basal, cycling, diff)
   proportion <- counts/total
   kera.dyn <- data.frame(names=c("Basal", "Cycling", "Differentiating"), proportion=proportion)
@@ -331,7 +335,8 @@ dynamic_barplot <- function(df, name, labels, title, colors){
                        mainTitle=paste(title, name),
                        removePanelGrid=TRUE, removePanelBorder=TRUE,
                        axisLine=c(0.5, "solid", "black"),
-                       groupColors=colors
+                       groupColors=colors,
+                       angle_col = "45"
   ) 
   if (isTRUE(labels)){
     p <- p + theme(text = element_text(size=7),
