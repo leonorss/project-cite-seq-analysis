@@ -12,9 +12,9 @@ knitr::opts_chunk$set(echo = TRUE, warning = FALSE, message = FALSE)
 ```
 
 
-#Introduction
+## Introduction
 
-## Motivations
+### Motivations
 Skin cancer is a disease that afflicts about 3.3M Americans each year (about 1% of the population) and is by far the most prevalent type of cancer. In fact, more people are diagnosed with skin cancer each year in the U.S. than all other cancers combined. (@SkinCancerFacts2020)
 
 A common type of skin cancer is called squamous cell carcinoma (SCC). This is the second most common form of skin cancer and afflicts roughly 1M Americans a year. The main causes of SCC are mutations arising from UV radiation. @SkinCancerFacts2020
@@ -28,20 +28,20 @@ Particularly, gaining an understanding of the biology of Cancer stem cells (CSC)
 
 In the following report, we analyze single cell RNA data stemming from 2 patients, one with SCC and one with AK.
 
-## Data
+### Data
 <!-- Maybe explain where the data come from -->
 In the following we will be looking at CITE-seq data gathered by Levesque's group for two patients. For both patients we have a sample of their healthy skin and and then a sample of either cancer or precancer skin. More precisely, patient one has a squamous cell carcinoma sample and patient two an actinic keratosis (pre-maligant lesion) sample.
 CITE-seq data (Cellular Indexing of Transcriptomes and Epitopes by Sequencing) is a single-cell sequencing method to not just sequence the transcriptome but also get information on the surface proteins of a cell. To this end surface proteins of interest are stained with antibody-derived tags (ADTs), which are then simultaneously sequenced with the transcriptome. The sequencing data is then analyzed with 10X genomics cell ranger pipeline. This pipeline will clean up the data a little bit, align it to a genome of interest and compute a counts matrix containing the number of transcripts of a specific gene in a specific cell. Additionally there's also a step that takes this output and filters it to get rid of emtpy droplets.
 In the end we have for each patient and each sample type, a raw and a filtered count matrix. After comparing our pipeline run with both raw and filtered data, we decided to stick with the raw data since the quality control and the clustering seemed to look better.
 
 
-## Bioconductor
+### Bioconductor
 <!-- Maybe explain a bit what the bioconductor package is about, since we use it extensively -->
 One of the tools we use quite extensively in this pipeline is Bionconductor. Bioconductor contains a pool of tools, which can be used for the analysis of highthrouput genomic data in R. Since we're interested in analyzing Levesque's data, we mainly use bioconductor's tools specialized to process, analyze and visualize single-cell RNA-seq data.
 
-# Preprocessing
+## Preprocessing
 
-## Loading necessary libraries
+### Loading necessary libraries
 
 ```{r libraries}
 suppressPackageStartupMessages({
@@ -81,7 +81,7 @@ source("functions/functions_analysis.R")
 ```
 
 
-## Loading the data
+### Loading the data
 
 For the following chunk, three options are available. The filtered data provided by 10X can be read and used directly. Otherwise, the same data from 10X are read but also preprocess using quality check. The third option is to load data that were previously preprocessed and saved.
 
@@ -144,12 +144,12 @@ In the next step, the empty droplets were removed. As mentioned before this only
 
 Next we removed the dead cells, e.g. the cells with high mitochondrial gene expression. The approach we used was the same as introduced in the lecture. Lastly, we also removed cells which had low library sizes and detection rates. As seen in class, we used the perCellQCMetrics() and isOutlier() functions to do so. We also produced a plot showing the log-fold-change of the discarded vs. kept cells which helps to investigate the possibility of an entire cell type being accidentally discarded because of the quality control. If that would be the case, we would observe an enrichment of a certain cell type in the discarded group, which can be identified by an increased expression of the corresponding marker genes. In the case of the raw data, which we ended up choosing, the plot showed that this didn't seem to be the case.
 
-## Normalization
+### Normalization
 
 In order to normalize our data, we first tried Library-Size normalization, which assumes that there is no “imbalance” in the differentially expressed (DE) genes between any pair of cells (@bioconductor). After observing that the separation of the clusters wasn't satisfying, we decided to use Variance Stabilizing Transformation (VST). VST helps in the sens that it manage to transform the data into a more gaussian-shaped distribution.
 
 
-## Reduction
+### Reduction
 
 The first step of the dimensinality reduction of our data was to select the 2'000 most variable genes because cell type is most likely influence by those variable gene more than the less variable ones. In addition to those highly variable genes (hvg), we decided to included the genes known to be present in certain cell (sub)types rather than others, even when those specific genes were not part of the 2'000 most variable ones. We ran principal component analysis (PCA) using the selected genes and kept the 20 first principal components (PCs) based on the explained variance to transform our data. Finally, we ran tSNE and UMAP on the modified data to get a 2D representation of the data.
 
@@ -199,8 +199,7 @@ genes <- list(
 )
   
 # Known markers: all the gene markers listed above
-# TODO : add the marker for keratinocyte cycling to the following list?
-known_markers <- c(genes$keratinocyte, genes$keratinocyte_basal, genes$keratinocyte_suprabasal, genes$keratinocyte_differentiated, genes$keratinocyte_ORS, genes$keratinocyte_channel, genes$keratinocyte_sebaceous_gland, genes$keratinocyte_sweat_gland, genes$fibroblast, genes$fibroblast_secretory_reticular, genes$fibroblast_proinflammatory, genes$fibroblast_secretory_papillary, genes$fibroblast_mesenchymal, genes$pericytevSMC, genes$pericytevSMC_pericyte, genes$pericytevSMC_vSMC, genes$endothelial, genes$endothelial_lymphatic, genes$myeloid, genes$myeloid_dendritic, genes$myeloid_langerhans, genes$myeloid_macrophage, genes$lymphocyte, genes$melanocyte, genes$schwann, genes$mitotic)
+known_markers <- c(genes$keratinocyte, genes$keratinocyte_basal, genes$keratinocyte_suprabasal, genes$keratinocyte_differentiated, genes$keratinocyte_ORS, genes$keratinocyte_channel, genes$keratinocyte_sebaceous_gland, genes$keratinocyte_sweat_gland, genes$keratinocyte_cycling, genes$fibroblast, genes$fibroblast_secretory_reticular, genes$fibroblast_proinflammatory, genes$fibroblast_secretory_papillary, genes$fibroblast_mesenchymal, genes$pericytevSMC, genes$pericytevSMC_pericyte, genes$pericytevSMC_vSMC, genes$endothelial, genes$endothelial_lymphatic, genes$myeloid, genes$myeloid_dendritic, genes$myeloid_langerhans, genes$myeloid_macrophage, genes$lymphocyte, genes$melanocyte, genes$schwann, genes$mitotic)
 
 
 sce.patient1_HS <- norm_redu(sce.patient1_HS, 2000, known_markers)
@@ -210,7 +209,7 @@ sce.patient2_AK <- norm_redu(sce.patient2_AK, 2000, known_markers)
 
 ```
 
-# Clustering
+## Clustering
 
 In order to label each cell by its type in a meaningfull way, we used the low-dimensionality representation we just produced and build a KNN graph from it. Chosing $k=30$ means that each cell is connected to its 30 closest cells. Once we have a graph, we can use the cluster_louvain function which is based on the modularity measure and a hierachical approach to find community structure of the data (https://www.rdocumentation.org/packages/igraph/versions/1.2.6/topics/cluster_louvain). At this stage, the data are clustered based only on their structure, not on their specific markers. To make the link from one cluster to a cell type, we aggregate the gene expression level of cells within a cluster to get a single value (c.f. Heatmaps) This aggregation summarizes the relative expression of each known markers for each cluster. The next step is to bring clusters having the same expression profile under the same cell type label. There is most likely room for improvement here, for instance clusters with no strong expression for any of the known markers could be left out or labelled as undefined. The assumption is that well defined cell outnumber the badly defined ones, giving meaningful statistical results in the end. Once the major cell types are identified, we took a look at the keratinocyte and fibroblast subtypes using the same steps but on those specific subsets.
 
@@ -234,7 +233,7 @@ g.patient2_AK <- results[[2]]
 
 ```
 
-## Cluster annotation
+### Cluster annotation
 
 The markers found in the literature (@scRNAseq, @fibroblast) were used to separate the different cell types and their subtypes within them. A few markers didn't appear at all in our data (WISP2 \textit(Secretory-reticular fibroblast), SEPP1 \textit(Macrophage), TYP1 \textit(Melanocyte)) so the corresponding cell types were selected using their remaining markers present. Since those markers found in the literature are known to correlate with specific cell types, their genes were added to the list of high variable genes used to produce a lower dimensional representation of the data, even when their expression didn't vary enough to be selected as highly variable.
 
@@ -280,7 +279,7 @@ km.patient2_AK <- results[[2]]
 
 ```
 
-## Pseudo-bulk aggregation
+### Pseudo-bulk aggregation
 
 One of the interesting biological questions is how the cell subtype composition changes between healthy skin and diseased skin. For this, simply extracted the cell subtypes for each sample and compare the proportion of cells for each subtype. We used the pseudobulk workflow suggested in the lecture, which 'bulks' gene expression levels for each cluster. 
 
@@ -345,9 +344,9 @@ fisher_test_subtypes(sce.patient1_HS, sce.patient1_SCC, 'fibroblast')
 
 
 
-## Sub-population clustering
+### Sub-population clustering
 
-### Keratinocytes subcomposition
+#### Keratinocytes subcomposition
 
 Keratinocytes constitute 90% of epidermal skin cells. The epidermis is the outermost layer of the skin. They form a barrier against environmental damage by heat, UV radiation, water loss, various parasites such as viruses, fungi and pathogenic bacteria.
 
@@ -373,7 +372,7 @@ sce.patient2_AK.kera <- cluster_subtype(sce.patient2_AK, "keratinocyte", known_m
 
 ```
 
-### Keratinocytes Dynamics
+#### Keratinocytes Dynamics
 
 ```{r keratinocyte_dynamics}
 
@@ -401,7 +400,7 @@ dynamic_barplot(kera.dyn.patient2, "Patient 2", F, "Proportion of Keratinocyte s
 
 ```
 
-### Fibroblast subcomposition
+#### Fibroblast subcomposition
 
 ```{r fibroblast}
 
@@ -424,7 +423,7 @@ sce.patient2_AK.fibro <- cluster_subtype(sce.patient2_AK, "fibroblast", known_ma
 ```
 
 
-# Markers correspondance
+## Markers correspondance
 
 ```{r check_markers, eval=FALSE}
 # The following code was used to check which genes were missing from in the data
@@ -440,13 +439,13 @@ print(paste("Done:", length(known_markers)-length(idx_notfound), "/", length(kno
 cat("Genes missing in dataset: ", known_markers[idx_notfound])
 ```
 
-# Summary
+## Summary
 
 
 
 
 
-# Discussion
+##s Discussion
 
 
 
