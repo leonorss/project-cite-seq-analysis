@@ -7,7 +7,7 @@
 
 
 #read 10x data that has empty drops filtered but nothing else(?)
-read_10x <- function() {
+read_10x <- function(use_raw_data = TRUE) {
   sample_names <- list("patient1_HS", "patient1_SCC", "patient2_HS", "patient2_AK")
   patient1_HS.path <- file.path("data", "patient1_HS")
   patient1_SCC.path <- file.path("data", "patient1_SCC")
@@ -17,16 +17,30 @@ read_10x <- function() {
   
   # read in filtered data and create list of SingleCellExperiment objects
   paths <- list(patient1_HS.path, patient1_SCC.path, patient2_HS.path, patient2_AK.path)
-  sces <- lapply(paths, function(i) read10xCounts(file.path(i, "outs/filtered_feature_bc_matrix"), col.names = TRUE))
+  
+  if (use_raw_data) {
+    sces <- lapply(paths, function(i) read10xCounts(file.path(i, "outs/raw_feature_bc_matrix"), col.names = TRUE))
+  } else {
+    sces <- lapply(paths, function(i) read10xCounts(file.path(i, "outs/filtered_feature_bc_matrix"), col.names = TRUE))
+  }
+
   return(sces)
 }
 #read previusly stored data
-read_previous_data <- function() {
+read_previous_data <- function(read_raw_filtered_data=FALSE) {
   sces <- list()
-  sces[[1]] <- readRDS('data/patient1_HS/clean_data/patient1_HS_cleanData_sce.RDS')
-  sces[[2]] <- readRDS('data/patient1_SCC/clean_data/patient1_SCC_cleanData_sce.RDS')
-  sces[[3]] <- readRDS('data/patient2_HS/clean_data/patient2_HS_cleanData_sce.RDS')
-  sces[[4]] <- readRDS('data/patient2_AK/clean_data/patient2_AK_cleanData_sce.RDS')
+  if(read_raw_filtered_data) {
+    sces[[1]] <- readRDS('data/patient1_HS/raw_clean_data/patient1_HS_cleanData_sce.RDS')
+    sces[[2]] <- readRDS('data/patient1_SCC/raw_clean_data/patient1_SCC_cleanData_sce.RDS')
+    sces[[3]] <- readRDS('data/patient2_HS/raw_clean_data/patient2_HS_cleanData_sce.RDS')
+    sces[[4]] <- readRDS('data/patient2_AK/raw_clean_data/patient2_AK_cleanData_sce.RDS')
+  } else {
+    sces[[1]] <- readRDS('data/patient1_HS/filtered_clean_data/patient1_HS_cleanData_sce.RDS')
+    sces[[2]] <- readRDS('data/patient1_SCC/filtered_clean_data/patient1_SCC_cleanData_sce.RDS')
+    sces[[3]] <- readRDS('data/patient2_HS/filtered_clean_data/patient2_HS_cleanData_sce.RDS')
+    sces[[4]] <- readRDS('data/patient2_AK/filtered_clean_data/patient2_AK_cleanData_sce.RDS')
+  }
+
   return(sces)
 }
 

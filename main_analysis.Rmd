@@ -84,23 +84,26 @@ For the following chunk, three options are available. The filtered data provided
 ## data can be downloaded from : http://imlspenticton.uzh.ch/dump/files_for_levesque.tar
 
 # Pick your poison
-option_selected = 2
+option_selected = 3
+
+# Decide if the code should be run using raw data or filtered data from 10X
+# default is TRUE
+use_raw_data = TRUE
 
 # and let it begin
 switch(option_selected,
-       # Option 1: read filtered data from 10X without doing any QC
-       sces <- read_10x(), 
-       # Option 2:
-       # read_raw_data: if FALSE then filtered data will be read
+       # Option 1: read data without doing any QC
+         sces <- read_10x(use_raw_data), 
+       # Option 2: read data, run QC and save clean data for later use via Option 3
        # n_cores: numbers of cores to use (parallelization used to speed up emptyDrops function), 
        # default is 4
        {
-         read_raw_data = FALSE
          n_cores = 4
-         sces <- read_and_qc(4, read_raw_data)
+         sces <- read_and_qc(4, use_raw_data)
        },
-       # Option 3:
-       sces <- read_previous_data(),
+       # Option 3: read clean data produced by previous run of Option 2
+       # Warning! Option 2 should have been run at least once before trying Option 3
+       sces <- read_previous_data(use_raw_data),
 )
 
 ```
@@ -191,11 +194,11 @@ genes <- list(
 )
   
 # Known markers: all the gene markers listed above
+# TODO : add the marker for keratinocyte cycling to the following list?
 known_markers <- c(genes$keratinocyte, genes$keratinocyte_basal, genes$keratinocyte_suprabasal, genes$keratinocyte_differentiated, genes$keratinocyte_ORS, genes$keratinocyte_channel, genes$keratinocyte_sebaceous_gland, genes$keratinocyte_sweat_gland, genes$fibroblast, genes$fibroblast_secretory_reticular, genes$fibroblast_proinflammatory, genes$fibroblast_secretory_papillary, genes$fibroblast_mesenchymal, genes$pericytevSMC, genes$pericytevSMC_pericyte, genes$pericytevSMC_vSMC, genes$endothelial, genes$endothelial_lymphatic, genes$myeloid, genes$myeloid_dendritic, genes$myeloid_langerhans, genes$myeloid_macrophage, genes$lymphocyte, genes$melanocyte, genes$schwann, genes$mitotic)
 
 
 sce.patient1_HS <- norm_redu(sce.patient1_HS, 2000, known_markers)
-
 sce.patient1_SCC <- norm_redu(sce.patient1_SCC, 2000, known_markers)
 sce.patient2_HS <- norm_redu(sce.patient2_HS, 2000, known_markers)
 sce.patient2_AK <- norm_redu(sce.patient2_AK, 2000, known_markers)
@@ -242,20 +245,29 @@ kable(cell.df)
 ```
 
 ```{r cluster_annotation}
-
-results <- annotate_cells(sce.patient1_HS, g.patient1_HS, genes)
+genes_type <- list(keratinocyte = genes$keratinocyte, 
+                   fibroblast = genes$fibroblasts, 
+                   pericytevSMC = genes$pericytevSMC, 
+                   endothelial = genes$endothelial, 
+                   myeloid = genes$myeloid, 
+                   lymphocyte = genes$lymphocyte, 
+                   melanocyte = genes$melanocyte, 
+                   schwann = genes$schwann, 
+                   mitotic = genes$mitotic)
+  
+results <- annotate_cells(sce.patient1_HS, g.patient1_HS, genes_type)
 sce.patient1_HS <- results[[1]]
 km.patient1_HS <- results[[2]]
 
-results <- annotate_cells(sce.patient1_SCC, g.patient1_SCC, genes)
+results <- annotate_cells(sce.patient1_SCC, g.patient1_SCC, genes_type)
 sce.patient1_SCC <- results[[1]]
 km.patient1_SCC <- results[[2]]
 
-results <- annotate_cells(sce.patient2_HS, g.patient2_HS, genes)
+results <- annotate_cells(sce.patient2_HS, g.patient2_HS, genes_type)
 sce.patient2_HS <- results[[1]]
 km.patient2_HS <- results[[2]]
 
-results <- annotate_cells(sce.patient2_AK, g.patient2_AK, genes)
+results <- annotate_cells(sce.patient2_AK, g.patient2_AK, genes_type)
 sce.patient2_AK <- results[[1]]
 km.patient2_AK <- results[[2]]
 
@@ -398,7 +410,7 @@ sce.patient2_AK.fibro <- cluster_subtype(sce.patient2_AK, "fibroblast", known_ma
 
 ```{r check_markers, eval=FALSE}
 # The following code was used to check which genes were missing from in the data
-# the known_markers are from the litterature
+# the known_markers are from the literature
 
 data_markers <- rowData(sce.patient1_HS)$Symbol
 known_markers <- c("DSC3","DSP","LGALS7","KRT5","KRT14","COL17A1","KRT1","KRT10","LOR", "SPINK5","KRT6B","GJB2","GJB6","ATP1B1","MGST1","FASN","DCD","AQP5","DCN","LUM","MMP2","WISP2","SLPI","CTHRC1","MFAP5","TSPAN8","CCL19","APOE","CXCL2","CXCL3","EFEMP1","APCDD1","ID1","WIF1","COL18A1","PTGDS","ASPN","POSTN","GPC3","TNN","SFRP1","ACTA2","TAGLN","RGS5","MYL9","TPM2","RERGL","PECAM1","SELE","CLDN5","VWF","PROX1","LYVE1","HLA-DRA","FCER1G","TYROBP","AIF1","CD1C","CD207","CD68","RNASE1","SEPP1","ITGAX","CD3D","CD3E","CD52","IL7R","DCT","MLANA","PMEL","TYP1","CDH19","NGFR","UBE2C","PCNA")
