@@ -84,7 +84,7 @@ For the following chunk, three options are available. The filtered data provided
 ## data can be downloaded from : http://imlspenticton.uzh.ch/dump/files_for_levesque.tar
 
 # Pick your poison
-option_selected = 3
+option_selected = 2
 
 # and let it begin
 switch(option_selected,
@@ -96,10 +96,11 @@ switch(option_selected,
        # default is 4
        {
          read_raw_data = FALSE
-         n_cores = 4
-         sces <- read_and_qc(4, read_raw_data)
+         n_cores = 7
+         sces <- read_and_qc(n_cores, read_raw_data)
        },
        # Option 3:
+       #TODO: check that we read the right previous data
        sces <- read_previous_data(),
 )
 
@@ -266,7 +267,9 @@ km.patient2_AK <- results[[2]]
 
 ## Pseudo-bulk aggregation
 
-One of the interesting biological questions is how the cell subtype composition changes between healthy skin and diseased skin. For this, simply extracted the cell subtypes for each sample and compare the proportion of cells for each subtype. A Fisher's exact test helps us verify that for this particular patient and collection method, the proportion of certain subtypes really differs among conditions.
+One of the interesting biological questions is how the cell subtype composition changes between healthy skin and diseased skin. For this, simply extracted the cell subtypes for each sample and compare the proportion of cells for each subtype. We used the pseudobulk workflow suggested in the lecture, which 'bulks' gene expression levels for each cluster. 
+
+A Fisher's exact test helps us verify that for this particular patient and collection method, the proportion of certain subtypes really differs among conditions.
 
 #Cell Subtype composition varies a lot.
 For Patient 1, it seems that their diseased skin (SCC) contains a far higher proportion of lymphocytes, endothelial cells and myleloid cells. Conversely, the proportion of keratinocytes is far lower. For Patient 2 with (AK), the lymphocytes is far higher, similar for fibroblasts and endothelial cells but lower for all other cell type when compared to healthy skin.
@@ -328,6 +331,11 @@ fisher_test_subtypes(sce.patient1_HS, sce.patient1_SCC, 'fibroblast')
 
 
 ## Sub-population clustering
+
+### Keratinocytes subcomposition
+
+Keratinocytes constitute 90% of epidermal skin cells. The epidermis is the outermost layer of the skin. They form a barrier against environmental damage by heat, UV radiation, water loss, various parasites such as viruses, fungi and pathogenic bacteria.
+
 ```{r keratinocyte}
 
 known_markers.kera <- c(genes$keratinocyte_basal, genes$keratinocyte_suprabasal, genes$keratinocyte_differentiated, genes$keratinocyte_ORS, genes$keratinocyte_channel, genes$keratinocyte_sebaceous_gland, genes$keratinocyte_sweat_gland)
@@ -349,6 +357,8 @@ sce.patient2_HS.kera <- cluster_subtype(sce.patient2_HS, "keratinocyte", known_m
 sce.patient2_AK.kera <- cluster_subtype(sce.patient2_AK, "keratinocyte", known_markers.kera, genes.kera)
 
 ```
+
+### Keratinocytes Dynamics
 
 ```{r keratinocyte_dynamics}
 
@@ -375,6 +385,8 @@ dynamic_barplot(kera.dyn.patient1, "Patient 1", F, "Proportion of Keratinocyte s
 dynamic_barplot(kera.dyn.patient2, "Patient 2", F, "Proportion of Keratinocyte states in", c(HS ='#999999', AK = '#E69F00'))
 
 ```
+
+### Fibroblast subcomposition
 
 ```{r fibroblast}
 
@@ -412,3 +424,14 @@ idx_notfound <- which(!(known_markers %in% rowData(sce.patient1_HS)$Symbol))
 print(paste("Done:", length(known_markers)-length(idx_notfound), "/", length(known_markers), "markers found"))
 cat("Genes missing in dataset: ", known_markers[idx_notfound])
 ```
+
+# Summary
+
+
+
+
+
+# Discussion
+
+
+
