@@ -99,7 +99,7 @@ switch(option_selected,
        # default is 4
        {
          n_cores = 4
-         sces <- read_and_qc(4, use_raw_data)
+         sces <- read_and_qc(n_cores, use_raw_data)
        },
        # Option 3: read clean data produced by previous run of Option 2
        # Warning! Option 2 should have been run at least once before trying Option 3
