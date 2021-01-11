@@ -360,7 +360,7 @@ plot_reference_clusters <- function(sceo) {
   rownames(sceo) <- rowData(sceo)$Symbol
   pred <- SingleR(test=sceo, ref=ref, labels=ref$label.main)
   sceo$cluster_ref <- as.factor(pred$labels)
-  p <- plotUMAP(sceo, colour_by="cluster_ref", text_by="cluster_ref")
+  p <- plotUMAP(sceo, colour_by="cluster_ref", text_by="cluster_ref", text_size=3)
   print(p)
   return(sceo)
 }
