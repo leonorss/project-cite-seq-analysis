@@ -6,6 +6,7 @@ bibliography: references.bib
 output: html_document
 ---
 Inspired from the pipeline by Pierre-Luc Germain presented in course STA426 (UZH)
+Source code is available on GitHub : https://github.com/sta426hs2020/project-cite-seq-analysis
 
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE, warning = FALSE, message = FALSE)
@@ -15,13 +16,7 @@ knitr::opts_chunk$set(echo = TRUE, warning = FALSE, message = FALSE)
 ## Introduction
 
 ### Motivations
-Skin cancer is a disease that afflicts about 3.3M Americans each year (about 1% of the population) and is by far the most prevalent type of cancer. In fact, more people are diagnosed with skin cancer each year in the U.S. than all other cancers combined. (@SkinCancerFacts2020)
-
-A common type of skin cancer is called squamous cell carcinoma (SCC). This is the second most common form of skin cancer and afflicts roughly 1M Americans a year. The main causes of SCC are mutations arising from UV radiation. @SkinCancerFacts2020
-
-Actinik keratosis (AK) is the most common form of precancer that results from long-term exposure to UV rays. Over time, actinic keratoses may develop into squamous cell carcinoma. This condition affects more than 58 million americans. (@SkinCancerFacts2020)
-
-Understanding the heterogeneity of skin cancer cells as wall as their cell type composition over disease development are key to find new therapeutic interventions (@McFarland2020Aug)
+Skin cancer is a disease that afflicts about 3.3M Americans each year (about 1% of the population) and is by far the most prevalent type of cancer. In fact, more people are diagnosed with skin cancer each year in the U.S. than all other cancers combined (@SkinCancerFacts2020). A common type of skin cancer is called squamous cell carcinoma (SCC). This is the second most common form of skin cancer and afflicts roughly 1M Americans a year. The main causes of SCC are mutations arising from UV radiation (@SkinCancerFacts2020). Actinik keratosis (AK) is the most common form of precancer that results from long-term exposure to UV rays. Over time, actinic keratoses may develop into squamous cell carcinoma. This condition affects more than 58 million americans (@SkinCancerFacts2020). Understanding the heterogeneity of skin cancer cells as wall as their cell type composition over disease development are key to find new therapeutic interventions (@McFarland2020Aug)
 
 -- optional if we find something. 
 Particularly, gaining an understanding of the biology of Cancer stem cells (CSC) is important, as they lead to metastasis and resistance to therapies. (link to )
@@ -29,15 +24,11 @@ Particularly, gaining an understanding of the biology of Cancer stem cells (CSC)
 In the following report, we analyze single cell RNA data stemming from 2 patients, one with SCC and one with AK.
 
 ### Data
-<!-- Maybe explain where the data come from -->
-In the following we will be looking at CITE-seq data gathered by Levesque's group for two patients. For both patients we have a sample of their healthy skin and and then a sample of either cancer or precancer skin. More precisely, patient one has a squamous cell carcinoma sample and patient two an actinic keratosis (pre-maligant lesion) sample.
-CITE-seq data (Cellular Indexing of Transcriptomes and Epitopes by Sequencing) is a single-cell sequencing method to not just sequence the transcriptome but also get information on the surface proteins of a cell. To this end surface proteins of interest are stained with antibody-derived tags (ADTs), which are then simultaneously sequenced with the transcriptome. The sequencing data is then analyzed with 10X genomics cell ranger pipeline. This pipeline will clean up the data a little bit, align it to a genome of interest and compute a counts matrix containing the number of transcripts of a specific gene in a specific cell. Additionally there's also a step that takes this output and filters it to get rid of emtpy droplets.
-In the end we have for each patient and each sample type, a raw and a filtered count matrix. After comparing our pipeline run with both raw and filtered data, we decided to stick with the raw data since the quality control and the clustering seemed to look better. We also realized after some quality control steps, that there seemed to be a problem with ADT data, which is why we discarded it for our pipeline. The reason for the bad quality of ADT data according to 10x is probably either physically aggregated antibodies or/and that the ADT library may have been undersequenced.
+In the following we will be looking at CITE-seq data gathered by Levesque's group for two patients. For both patients we have a sample of their healthy skin and and then a sample of either cancer or precancer skin. More precisely, patient one has a squamous cell carcinoma (SCC) sample and patient two an actinic keratosis (AK), a pre-maligant lesion, sample. Cellular Indexing of Transcriptomes and Epitopes by Sequencing (CITE-seq) data is a single-cell sequencing method which not only sequences the transcriptome but also give information about the cell's surface proteins. To this end surface proteins of interest are stained with antibody-derived (ADT) tags, which are then simultaneously sequenced with the transcriptome. The sequencing data is afterward analyzed using 10X genomics cell ranger pipeline. This pipeline will slightly clean up the data, align it to a genome of interest and compute a counts matrix containing the number of transcripts of a specific gene per cells. Optionally, a filtering step can be included which gets rid of empty droplets. In the end we have for each patient and each sample type, a raw and a filtered count matrix. After looking at the ADT data, we realized that a problem might have occurred in the experiment and we therefore decided to discard this part of the data for our analysis. This problem might have been caused by physical aggregation of antibodies or by undersequencing of the ADT library. After comparing the results produced from raw and filtered data, we decided to only present the ones derived from raw data in this report. Also, only a selection of the plots are presented. We leave to the interested reader the option of running the source code available in the project GitHub repository.
 
 
 ### Bioconductor
-<!-- Maybe explain a bit what the bioconductor package is about, since we use it extensively -->
-One of the tools we use quite extensively in this pipeline is Bionconductor. Bioconductor contains a pool of tools, which can be used for the analysis of highthrouput genomic data in R. Since we're interested in analyzing Levesque's data, we mainly use bioconductor's tools specialized to process, analyze and visualize single-cell RNA-seq data.
+One of the tools we use quite extensively in this pipeline is the Bionconductor package. Bioconductor contains a pool of tools, which can be used for the analysis of highthrouput genomic data in R. Since we're interested in analyzing Levesque's data, we mainly use bioconductor's tools specialized to process, analyze and visualize single-cell RNA-seq data.
 
 ## Preprocessing
 
@@ -86,7 +77,7 @@ source("functions/functions_analysis.R")
 
 ### Loading the data
 
-For the following chunk, three options are available. The filtered data provided by 10X can be read and used directly. Otherwise, the same data from 10X are read but also preprocess using quality check. The third option is to load data that were previously preprocessed and saved.
+For the following chunk, three options are available. The raw or filtered data provided by 10X can be read and used directly. Otherwise, the same data are read but also preprocess using our own quality check. The third option is used to save time in case changes were made only on the analysis part. It requires the preprocessed data to have been saved (achieved by simply runing option 2 once).
 
 ```{r data-loading}
 ## data can be downloaded from : http://imlspenticton.uzh.ch/dump/files_for_levesque.tar
