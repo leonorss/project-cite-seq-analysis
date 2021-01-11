@@ -363,7 +363,7 @@ plot_reference_clusters <- function(sceo) {
   rownames(sceo2) <- rowData(sceo2)$Symbol
   pred <- SingleR(test=sceo2, ref=ref, labels=ref$label.main)
   sceo2$cluster_ref <- as.factor(pred$labels)
-  p <- plotUMAP(sceo2, colour_by="cluster_ref", text_size=3)
+  p <- plotUMAP(sceo2, colour_by="cluster_ref", text_size=3) + ggtitle(attr(sceo, "name")) + theme(legend.title=element_blank())
   print(p)
   return(sceo2)
 }

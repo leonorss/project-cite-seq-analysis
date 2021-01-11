@@ -6,7 +6,8 @@ bibliography: references.bib
 output: html_document
 ---
 Inspired from the pipeline by Pierre-Luc Germain presented in course STA426 (UZH)
-Source code is available on GitHub : https://github.com/sta426hs2020/project-cite-seq-analysis
+
+Source code is available on GitHub :https://github.com/sta426hs2020/project-cite-seq-analysis
 
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE, warning = FALSE, message = FALSE)
@@ -17,9 +18,6 @@ knitr::opts_chunk$set(echo = TRUE, warning = FALSE, message = FALSE)
 
 ### Motivations
 Skin cancer is a disease that afflicts about 3.3M Americans each year (about 1% of the population) and is by far the most prevalent type of cancer. In fact, more people are diagnosed with skin cancer each year in the U.S. than all other cancers combined (@SkinCancerFacts2020). A common type of skin cancer is called squamous cell carcinoma (SCC). This is the second most common form of skin cancer and afflicts roughly 1M Americans a year. The main causes of SCC are mutations arising from UV radiation (@SkinCancerFacts2020). Actinik keratosis (AK) is the most common form of precancer that results from long-term exposure to UV rays. Over time, actinic keratoses may develop into squamous cell carcinoma. This condition affects more than 58 million americans (@SkinCancerFacts2020). Understanding the heterogeneity of skin cancer cells as wall as their cell type composition over disease development are key to find new therapeutic interventions (@McFarland2020Aug)
-
--- optional if we find something. 
-Particularly, gaining an understanding of the biology of Cancer stem cells (CSC) is important, as they lead to metastasis and resistance to therapies. (link to )
 
 In the following report, we analyze single cell RNA data stemming from 2 patients, one with SCC and one with AK.
 
@@ -205,7 +203,7 @@ sce.patient2_AK <- norm_redu(sce.patient2_AK, 2000, known_markers)
 
 ## Clustering
 
-In order to label each cell by its type in a meaningfull way, we used the low-dimensionality representation we just produced and build a KNN graph from it. Chosing $k=30$ means that each cell was connected to its 30 closest cells. Once we had a graph, we could use the cluster_louvain function which is based on the modularity measure and a hierachical approach to find community structure of the data (@cluster_louvain). At this stage, the data were clustered based only on their structure, not on their specific markers (c.f. exemple for Patient1 HS below). To make the link from one cluster to a cell type, we aggregate the gene expression level of cells within a cluster to get a single value. This aggregation summarizes the relative expression of each known markers for each cluster. The next step is to bring clusters having the same expression profile under the same cell type label. There is most likely room for improvement when looking at the Patient2 AK heatmaps presented below. For instance clusters with no strong expression for any of the known markers could be left out or labeled as undefined. The assumption was that well defined cell outnumber the badly defined ones, giving statistically meaningful results in the end. Once the major cell types were identified, we took a closer look at the keratinocyte and fibroblast subtypes using the same steps but with markers linked to their respective subpopulations. We decided to only show the UMAP plot for the 2D representation of the data.
+In order to label each cell by its type in a meaningfull way, we used the low-dimensionality representation we just produced and build a KNN graph from it. Chosing $k=15$ means that each cell was connected to its 15 closest cells. Once we had a graph, we could use the cluster_louvain function which is based on the modularity measure and a hierachical approach to find community structure of the data (@cluster_louvain). At this stage, the data were clustered based only on their structure, not on their specific markers (c.f. exemple for Patient1 HS below). To make the link from one cluster to a cell type, we aggregate the gene expression level of cells within a cluster to get a single value. This aggregation summarizes the relative expression of each known markers for each cluster. The next step is to bring clusters having the same expression profile under the same cell type label. There is most likely room for improvement when looking at the Patient2 AK heatmaps presented below. For instance clusters with no strong expression for any of the known markers could be left out or labeled as undefined. The assumption was that well defined cell outnumber the badly defined ones, giving statistically meaningful results in the end. Once the major cell types were identified, we took a closer look at the keratinocyte and fibroblast subtypes using the same steps but with markers linked to their respective subpopulations. We decided to only show the UMAP plot for the 2D representation of the data.
 
 ```{r clustering, fig.keep='first'}
 
@@ -312,14 +310,10 @@ cl2.patient2_AK <- results[[4]]
 
 ### Proportion of cell populations
 
-One of the interesting biological questions is how the cell subtype composition changes between healthy skin and diseased skin. For this, simply extracted the cell subtypes for each sample and compare the proportion of cells for each subtype. We used the pseudobulk workflow suggested in the lecture, which 'bulks' gene expression levels for each cluster. 
+One of the interesting biological questions is how the cell subtype composition changes between healthy skin and diseased skin. For this, simply extracted the cell subtypes for each sample and compare the proportion of cells for each subtype. We used the pseudobulk workflow suggested in the lecture, which 'bulks' gene expression levels for each cluster. A Fisher's exact test helps us verify that for this particular patient and collection method, the proportion of certain subtypes really differs among conditions.
 
-A Fisher's exact test helps us verify that for this particular patient and collection method, the proportion of certain subtypes really differs among conditions.
-
-#Cell Subtype composition varies a lot.
 For Patient 1, it seems that their diseased skin (SCC) contains a far higher proportion of lymphocytes, endothelial cells and myleloid cells. Conversely, the proportion of keratinocytes is far lower. For Patient 2 with (AK), the lymphocytes is far higher, similar for fibroblasts and endothelial cells but lower for all other cell type when compared to healthy skin.
 
-#Mitotic Cells and Keratinocytes are hard to differentiate in Patient 2 with AK.
 When it comes to mitotic cells, the marker genes used to quantify mitotic cells play a significant role. Using the suggested marker genes from @scRNAseq, we find mitotic cells in both healthy samples, but not in the diseased samples (AK + SCC). We experimented with different marker genes for the mitotic cells, adding some we found in @hsiao_characterizing_2020, but since our clustering algorithm didn't find clusters different enough from each other, we are left with either labeling some cells as all mitotic or all keratinocytes for patient 2.
 
 ```{r dynamics}
@@ -344,11 +338,7 @@ p_val_lympho2 <- fisher_test_subtypes(sce.patient2_HS, sce.patient2_AK, 'lymphoc
 
 ```
 
-#Cell Subtype composition varies a lot.
-
 For Patient 1, it seems that their diseased skin (SCC) contains a far higher proportion of lymphocytes (p=`r p_val_lympho`), endothelial cells (p=`r p_val_endothelial`) and myeloid cells (p=`r p_val_myeloid`) . Conversely, the proportion of keratinocytes is far lower (p=`r p_val_endothelial`). For Patient 2 with (AK), the lymphocytes is far higher (p=`r p_val_lympho2`), similar for fibroblasts and endothelial cells but lower for all other cell type when compared to healthy skin.
-
-#Mitotic Cells and Keratinocytes are hard to differentiate in Patient 2 with AK.
 
 When it comes to mitotic cells, the marker genes used to quantify mitotic cells play a significant role. Using the suggested marker genes from @scRNAseq, we find mitotic cells in both healthy samples, but not in the diseased samples (AK + SCC). We experimented with different marker genes for the mitotic cells, adding some we found in @hsiao_characterizing_2020, but since our clustering algorithm didn't find clusters different enough from each other, we are left with either labeling some cells as all mitotic or all keratinocytes for patient 2.
 
@@ -358,7 +348,7 @@ When it comes to mitotic cells, the marker genes used to quantify mitotic cells 
 
 When we realized we had some issues with not all subclusters being represented, we realized the above pseudobulk approach may be limited when it comes to assigning cells their most appropriate type. For one, the 'bulking' converts a heterogenous cell population into a single cluster and individual differences in RNA expression data is lost. Additionally, the approach relying on a few single marker genes again captures only a limited part of the gene expression profile and simply summing up expression values across different genes doesn't take into account that some marker genes may be more important, or that a cell type with three marker genes will have a higher a sum than one with two marker genes given similar expression values for those genes.
 
-Hence, we looked for alternative approaches. At Mark's suggestion, we implemented SingleR @SingleR, which assigns each cell to a cell type individually. It does this by leveraging previously published data about expression profiles of pure cells and their corresponding cell type . In this case we are using the celldex package and tried out both the BluePrintEncode Data set as well as the HumanPrimaryCellAtlasData. This original data was generated by @Martens2013Oct and @Mabbott2013De respectively and then further processed as in @Aran2019Feb. 
+Hence, we looked for alternative approaches. At Mark's suggestion, we implemented SingleR @SingleR, which assigns each cell to a cell type individually. It does this by leveraging previously published data about expression profiles of pure cells and their corresponding cell type . In this case we are using the celldex package and tried out both the BluePrintEncode Data set as well as the HumanPrimaryCellAtlasData. This original data was generated by @Martens2013Oct and @Mabbott2013Dec respectively and then further processed as in @Aran2019Feb. 
 
 We include this data also to show that the way one decides to assign cell type membership has an important influence on results and what conclusions are then drawn from them. 
 
@@ -450,7 +440,7 @@ known_markers.kera <- c(genes$keratinocyte_basal, genes$keratinocyte_suprabasal,
 
 #### Keratinocytes Dynamics
 
-```{r keratinocyte_dynamics}
+```{r keratinocyte_dynamics , fig.keep=c(5,6)}
 
 # the following list is used to have prettier graph annotation
 genes.dyn <- list(
@@ -476,7 +466,7 @@ dynamic_barplot(kera.dyn.patient2, "Patient 2", F, "Proportion of Keratinocyte s
 
 ```
 
-The results on the keratinocytes have been very susceptible to small changes in parameters, so we don't trust these reults very much.
+The results on the keratinocytes have been susceptible to small changes in parameters, so we don't trust these results very much.
 
 <!-- #### Fibroblast subcomposition
 
@@ -525,18 +515,20 @@ We started by cleaning up the raw data and applying clustering algorithm to iden
 
 Howevever, when we used cell type assignment by a reference genome set, we got different results, where for example the proportion of lymphocytes is increased, but not nearly as much as with the pseudobulk method.
 
+In the end, the pseudobulk clustering offers a generalization that has its value and researches need to decide how to integrate cell type assignment using more granular versions when making their conclusions.
 
 ## Discussion
 
-The first point which should be discussed is related to the few relatively arbitrary cut-off values that were used. To be more specific, we decided to use the 20 first principal components (PCs) and to build our kNN graph linking a cell to its 30 closest neighbors. Both factors are influencing the results and can be discussed.
+The first point which should be discussed is related to the few relatively arbitrary cut-off values that were used. To be more specific, we decided to use the 20 first principal components (PCs) and to build our kNN graph linking a cell to its 15 closest neighbors. Both factors are influencing the results and can be discussed.
 
 Secondly, we think the method used would benefit from a manual selection for cluster aggregation into a specific cell type. Comparing the heatmaps produced before and after aggregation showed that we sometimes faced clusters with no clear marker expression. The cells belonging to those cluster could therefore artificially blow up the proportion of a cell type after aggregation even though they are not expressing the required markers. We think that a manual pick would allow a more refine selection and the introduction of an additional label bringing all the undefined cells together.
 
 An other point to discuss is the change in cell type proportion. We saw that changes were important for lymphocytes and keratinocytes between healthy and cancerous tissues, but it is important to keep in mind that we only have the data of two patients and therefore not a very statistically reliable result. Also as mentioned before, e.g. clusters that have no strong expression for any of the known markers we looked at, could have an effect on the number of cells counted towards a certain cell type. This could potentially give us a false impression on how different a cell type is in the healthy and cancer sample. As mentioned before this would be something to look into some more, but the assumption is that it won't have that much of an effect.
 
+
 We recommend a more in depth investigation by using and comparing different methods in order to make sure that analysis and conclusions are reliable.
 
-### Impact for therpeutic interventions
+### Impact for therapeutic interventions
 
 One of the major difficulties in the successful treatment of cancer is the lack of understanding of its evolution. How does it emerge, metastasize and relapse? Tumor heterogeneity arises from various genetic and epigenetic changes as well as external cues and selective forces. Getting a better grasp on this variability could help us understand disease state and ideally predict treatment outcomes for patients. 
 
