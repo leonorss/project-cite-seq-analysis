@@ -216,8 +216,6 @@ cluster_subtype <- function(sceo, cell_type, known_markers, subtype_markers) {
   sceo.sub <- results[[1]]
   go.sub <- results[[2]]
 
-  print(go.sub)
-
   results <- annotate_cells(sceo.sub, go.sub, subtype_markers)
 
   sceo.sub <- results[[1]]
