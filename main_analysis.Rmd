@@ -368,7 +368,8 @@ sce.patient2_HS.ref <- plot_reference_clusters(sce.patient2_HS)
 sce.patient2_AK.ref <- plot_reference_clusters(sce.patient2_AK)
 ```
 
-```{r reference-clustering-human_cell_atlas}
+Optionally, we can run with the human cell atlas (not running for brevity here.)
+```{r reference-clustering-human_cell_atlas,eval=FALSE}
 ref <- celldex::HumanPrimaryCellAtlasData()
 sce.patient1_HS.ref2 <- plot_reference_clusters(sce.patient1_HS)
 sce.patient1_SCC.ref2 <- plot_reference_clusters(sce.patient1_SCC)
@@ -377,7 +378,7 @@ sce.patient2_AK.ref2 <- plot_reference_clusters(sce.patient2_AK)
 ```
 Further, we can see what a huge impact the annotation method has. While the difference in lymphocytes between healthy skin and AK was extremely pronounced using the pseudobulk method, the reference annotation shows the difference being much less pronounced. Overall, there do seem to be a bit fewer immune cells in the AK condition. We would love to investigate this more, but because of a lack of time we just show these very contradicting results for now.
 
-```{r dynamic-plots-reference}
+```{r dynamic-plots-reference, eval=FALSE}
 
 lymphocytes = c("B-cells", "CD8+ T-cells","CD4+ T-cells", "NK cells")
 
@@ -478,7 +479,7 @@ dynamic_barplot(kera.dyn.patient2, "Patient 2", F, "Proportion of Keratinocyte s
 
 #### Fibroblast subcomposition
 
-```{r fibroblast, results='hide', fig.keep=c(5, 10, 15, 20)}
+```{r fibroblast, results='hide', fig.keep=c(5, 10, 15, 20), eval=FALSE}
 
 known_markers.fibro <- c(genes$fibroblast_secretory_reticular, genes$fibroblast_proinflammatory, genes$fibroblast_secretory_papillary, genes$fibroblast_mesenchymal)
 

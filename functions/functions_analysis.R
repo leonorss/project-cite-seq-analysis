@@ -161,9 +161,11 @@ pseudobulk <- function(sceo, kmo) {
   co        <- c("aliceblue", "aquamarine4", "antiquewhite4", "brown", "black", "coral3", "cornflowerblue", "darkorange2", "darkgoldenrod1")
   co <- co[1:length(kmo)]
   names(co) <- unique((data.frame(row.names=unlist(kmo), type=rep(names(kmo), lengths(kmo))))$type)
+  df <- data.frame(row.names=unlist(kmo), type=rep(names(kmo), lengths(kmo)))
+  names(co) <- unique(df$type)
+  co <- co[!is.na(names(co))]
   anno_colors <- list(type = co)
   h <- pheatmap(assay(pbo)[unlist(kmo),], annotation_row=data.frame(row.names=unlist(kmo), type=rep(names(kmo), lengths(kmo))), gaps_row=cumsum(lengths(kmo)), annotation_colors = anno_colors, annotation_names_row=F, cluster_rows=FALSE, scale="row", main=paste(attr(sceo, "name"),"before markers aggregation"), fontsize_row=6, fontsize_col=10, angle_col = "45")
-
   print(h)
 
   #--- aggregation markers
@@ -359,10 +361,11 @@ dynamic_barplot <- function(df, name, labels, title, colors){
 }
 
 plot_reference_clusters <- function(sceo) {
-  rownames(sceo) <- rowData(sceo)$Symbol
-  pred <- SingleR(test=sceo, ref=ref, labels=ref$label.main)
-  sceo$cluster_ref <- as.factor(pred$labels)
-  p <- plotUMAP(sceo, colour_by="cluster_ref", text_size=3)
+  sceo2 <- sceo
+  rownames(sceo2) <- rowData(sceo2)$Symbol
+  pred <- SingleR(test=sceo2, ref=ref, labels=ref$label.main)
+  sceo2$cluster_ref <- as.factor(pred$labels)
+  p <- plotUMAP(sceo2, colour_by="cluster_ref", text_size=3)
   print(p)
-  return(sceo)
+  return(sceo2)
 }
