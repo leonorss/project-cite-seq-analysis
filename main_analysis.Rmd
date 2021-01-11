@@ -24,11 +24,11 @@ Particularly, gaining an understanding of the biology of Cancer stem cells (CSC)
 In the following report, we analyze single cell RNA data stemming from 2 patients, one with SCC and one with AK.
 
 ### Data
-In the following we will be looking at CITE-seq data gathered by Levesque's group for two patients. For both patients we have a sample of their healthy skin and and then a sample of either cancer or precancer skin. More precisely, patient one has a squamous cell carcinoma (SCC) sample and patient two an actinic keratosis (AK), a pre-maligant lesion, sample. Cellular Indexing of Transcriptomes and Epitopes by Sequencing (CITE-seq) data is a single-cell sequencing method which not only sequences the transcriptome but also give information about the cell's surface proteins. To this end surface proteins of interest are stained with antibody-derived (ADT) tags, which are then simultaneously sequenced with the transcriptome. The sequencing data is afterward analyzed using 10X genomics cell ranger pipeline. This pipeline will slightly clean up the data, align it to a genome of interest and compute a counts matrix containing the number of transcripts of a specific gene per cells. Optionally, a filtering step can be included which gets rid of empty droplets. In the end we have for each patient and each sample type, a raw and a filtered count matrix. After looking at the ADT data, we realized that a problem might have occurred in the experiment and we therefore decided to discard this part of the data for our analysis. This problem might have been caused by physical aggregation of antibodies or by undersequencing of the ADT library. After comparing the results produced from raw and filtered data, we decided to only present the ones derived from raw data in this report. Also, only a selection of the plots are presented. We leave to the interested reader the option of running the source code available in the project GitHub repository.
+In the following we will be looking at CITE-seq data gathered by Levesque's group for two patients. For both patients we have a sample of their healthy skin and and then a sample of either cancer or precancer skin. More precisely, patient one has a squamous cell carcinoma (SCC) sample and patient two an actinic keratosis (AK), a pre-maligant lesion, sample. Cellular Indexing of Transcriptomes and Epitopes by Sequencing (CITE-seq) data is a single-cell sequencing method which not only sequences the transcriptome but also give information about the cell's surface proteins. To this end surface proteins of interest are stained with antibody-derived tags (ADTs), which are then simultaneously sequenced with the transcriptome. The sequencing data is afterward analyzed using 10X genomics cell ranger pipeline. This pipeline will slightly clean up the data, align it to a genome of interest and compute a counts matrix containing the number of transcripts of a specific gene per cells. Optionally, a filtering step can be included which gets rid of empty droplets. In the end we have for each patient and each sample type, a raw and a filtered count matrix. After looking at the ADT data, we realized that a problem might have occurred in the experiment and we therefore decided to discard this part of the data for our analysis. This problem might have been caused by physical aggregation of antibodies or by undersequencing of the ADT library. 
 
 
 ### Bioconductor
-One of the tools we use quite extensively in this pipeline is the Bionconductor package. Bioconductor contains a pool of tools, which can be used for the analysis of highthrouput genomic data in R. Since we're interested in analyzing Levesque's data, we mainly use bioconductor's tools specialized to process, analyze and visualize single-cell RNA-seq data.
+One of the tools we used quite extensively is the Bionconductor package. Bioconductor contains a pool of tools, which are very usefull for the analysis of highthrouput genomic data. Given our data, we mainly used Bioconductor's tools specialized to process, analyze and visualize single-cell RNA-seq data.
 
 ## Preprocessing
 
@@ -77,7 +77,7 @@ source("functions/functions_analysis.R")
 
 ### Loading the data
 
-For the following chunk, three options are available. The raw or filtered data provided by 10X can be read and used directly. Otherwise, the same data are read but also preprocess using our own quality check. The third option is used to save time in case changes were made only on the analysis part. It requires the preprocessed data to have been saved (achieved by simply runing option 2 once).
+For the following chunk, three options are available. The raw or filtered data provided by 10X can be read and used directly. Otherwise, the same data are read but also preprocess using our own quality check. The third option is used to save time in case changes were made only on the analysis part. It requires the preprocessed data to have been saved (achieved by simply runing option 2 once). After comparing the results produced from raw and filtered data, we decided to only present the ones derived from raw data in this report. Also, only a selection of the plots are presented. We leave to the interested reader the option of running the source code available in the GitHub repository.
 
 ```{r data-loading}
 ## data can be downloaded from : http://imlspenticton.uzh.ch/dump/files_for_levesque.tar
@@ -132,11 +132,11 @@ rownames(sce.patient2_AK) <- paste_rownames(sce.patient2_AK)
 
 We look at both the raw and unfiltered data from the cell ranger output, to see what yields the best results. For both data sets, we first ran them through our quality control function. Since the filtered data from 10X already has all the empty droplets removed, this step was skipped for it, but not for the raw data. In the following section we will quickly go over what steps we took in our quality control function and how we made sure they were sensible.
 
-The first step in our pipeline is to separate the antibody-derived tag (ADT) data from the remaining mRNA counts and clean them up. Ideally we'd like to identify the cells which failed to capture the ADTs and remove them. This step is usually done by removing cells with ADT counts less than or equal to half of the total number of tags, which leads to the loss of a huge number of cells in our case as shown in the summary output. We produced a plot showing the distribution of the number of detected ADTs and observed that most cells have negligeable ADT counts. The distribution of ADT count has a smaller peak at around 50 though. From this plot we decided to change the threshold at which cells will be discarded to 25, to not throw away as many cells. But even with this change it seemed like to many cells were to be discarded because of low quality ADT data. Therefore, we finally decided to ignore this part of the data completely.
+The first step implemented in the QC is to look at the ADT data. Ideally we'd like to identify the cells which failed to capture the ADTs and remove them. This step is usually done by removing cells with ADT counts less than or equal to half of the total number of tags. In our case, this approach lead to the loss of a huge number of cells as shown in the summary output. We produced a plot showing the distribution of the number of detected ADTs and observed that most cells had negligible ADT counts. The distribution of ADT count had a smaller peak at around 50 though. We decided to change the threshold at which cells will be discarded to 25, to increase the number of retained cells. But even with this change too many cells were to be discarded. Therefore, we finally decided to ignore this part of the data completely.
 
-In the next step, the empty droplets were removed. As mentioned before this only happens for the raw data. We ran the function emptyDrops() to do so, which tests if the counts of a cell are significantly different from the ambient mRNA pool. If it is not the case, then we're most likely facing an empty droplet. After looking at some summary statistics of the output of this function, we realized that there were non-significant cell barcodes, which were bounded by the number of iterations. We solved this issue by increasing the number of iterations (to 100'000) in emptyDrops(). There's also a plot showing the histogram of the p-values given by emptyDrops() which should be approximately uniform. It was luckily the case with our data. It is interesting to note that this part of the quality control pipeline is responsible for the most amount of discarded cells.
+In the next step, the empty droplets were removed. As mentioned before, this is only relevant for the raw data. We ran the function emptyDrops() to do so, which tests if the counts of a cell are significantly different from the ambient mRNA pool. If it is not the case, then we're most likely facing an empty droplet. The summary statistics outputted showed that there were non-significant cell barcodes, which were bounded by the number of iterations. We solved this issue by increasing the number of iterations (to 100'000) in emptyDrops(). The distribution of p-values should be approximately uniform, which was checked using an histogram and was luckily the case with our data. It is interesting to note that this part of the quality control pipeline is responsible for the most amount of discarded cells.
 
-Next we removed the dead cells, e.g. the cells with high mitochondrial gene expression. The approach we used was the same as introduced in the lecture. Lastly, we also removed cells which had low library sizes and detection rates. As seen in class, we used the perCellQCMetrics() and isOutlier() functions to do so. We also produced a plot showing the log-fold-change of the discarded vs. kept cells which helps to investigate the possibility of an entire cell type being accidentally discarded because of the quality control. If that would be the case, we would observe an enrichment of a certain cell type in the discarded group, which can be identified by an increased expression of the corresponding marker genes. In the case of the raw data, which we ended up choosing, the plot showed that this didn't seem to be the case.
+Next we removed the dead cells, which are selected via their high mitochondrial gene expression. The approach we used was the same as introduced in the lecture. Lastly, we also removed cells which had low library sizes and detection rates. We used the perCellQCMetrics() and isOutlier() functions to do so. The plot showing the log-fold-change of the discarded vs. kept cells helped to investigate the possibility of an entire cell type being accidentally discarded because of the quality control. If that were the case, we would have observed an enrichment of a certain cell type in the discarded group, which can be identified by an increased expression of the corresponding marker genes.
 
 ### Normalization
 
@@ -145,7 +145,7 @@ In order to normalize our data, we first tried Library-Size normalization, which
 
 ### Reduction
 
-The first step of the dimensinality reduction of our data was to select the 2'000 most variable genes because cell type is most likely influence by those variable gene more than the less variable ones. In addition to those highly variable genes (hvg), we decided to included the genes known to be present in certain cell (sub)types rather than others, even when those specific genes were not part of the 2'000 most variable ones. We ran principal component analysis (PCA) using the selected genes and kept the 20 first principal components (PCs) based on the explained variance to transform our data. Finally, we ran tSNE and UMAP on the modified data to get a 2D representation of the data.
+The first step of the dimensionality reduction of our data was to select the 2'000 most variable genes because cell type choice is most likely influenced by the genes varying a lot across the data set than the less variable ones. In addition to those highly variable genes (hvg), we decided to included the genes known to be present in certain cell (sub)types rather than others, even when those specific genes were not part of the 2'000 most variable ones. We ran principal component analysis (PCA) using the selected genes and kept the 20 first principal components (PCs) based on the explained variance to transform our data. Finally, we ran tSNE and UMAP on the modified data to get a 2D representation of the data.
 
 ```{r normalization_reduction, results="hide", fig.keep="none"}
 # genes not found in our data : "WISP2" "SEPP1" "TYP1" 
@@ -205,7 +205,7 @@ sce.patient2_AK <- norm_redu(sce.patient2_AK, 2000, known_markers)
 
 ## Clustering
 
-In order to label each cell by its type in a meaningfull way, we used the low-dimensionality representation we just produced and build a KNN graph from it. Chosing $k=30$ means that each cell is connected to its 30 closest cells. Once we have a graph, we can use the cluster_louvain function which is based on the modularity measure and a hierachical approach to find community structure of the data (@cluster_louvain). At this stage, the data are clustered based only on their structure, not on their specific markers (c.f. exemple for Patient1 HS below). To make the link from one cluster to a cell type, we aggregate the gene expression level of cells within a cluster to get a single value. This aggregation summarizes the relative expression of each known markers for each cluster. The next step is to bring clusters having the same expression profile under the same cell type label. There is most likely room for improvement when looking at the Patient2 AK case presented below. For instance clusters with no strong expression for any of the known markers could be left out or labelled as undefined. The assumption is that well defined cell outnumber the badly defined ones, giving meaningful statistical results in the end. Once the major cell types are identified, we took a look at the keratinocyte and fibroblast subtypes using the same steps but on those specific subsets.
+In order to label each cell by its type in a meaningfull way, we used the low-dimensionality representation we just produced and build a KNN graph from it. Chosing $k=30$ means that each cell was connected to its 30 closest cells. Once we had a graph, we could use the cluster_louvain function which is based on the modularity measure and a hierachical approach to find community structure of the data (@cluster_louvain). At this stage, the data were clustered based only on their structure, not on their specific markers (c.f. exemple for Patient1 HS below). To make the link from one cluster to a cell type, we aggregate the gene expression level of cells within a cluster to get a single value. This aggregation summarizes the relative expression of each known markers for each cluster. The next step is to bring clusters having the same expression profile under the same cell type label. There is most likely room for improvement when looking at the Patient2 AK heatmaps presented below. For instance clusters with no strong expression for any of the known markers could be left out or labeled as undefined. The assumption was that well defined cell outnumber the badly defined ones, giving statistically meaningful results in the end. Once the major cell types were identified, we took a closer look at the keratinocyte and fibroblast subtypes using the same steps but with markers linked to their respective subpopulations. We decided to only show the UMAP plot for the 2D representation of the data.
 
 ```{r clustering, fig.keep='first'}
 
@@ -229,7 +229,7 @@ g.patient2_AK <- results[[2]]
 
 ### Cluster annotation
 
-The markers found in the literature (@scRNAseq, @fibroblast) were used to separate the different cell types and their subtypes within them. A few markers didn't appear at all in our data (WISP2 \textit(Secretory-reticular fibroblast), SEPP1 \textit(Macrophage), TYP1 \textit(Melanocyte)) so the corresponding cell types were selected using their remaining markers present. Since those markers found in the literature are known to correlate with specific cell types, their genes were added to the list of high variable genes used to produce a lower dimensional representation of the data, even when their expression didn't vary enough to be selected as highly variable.
+The markers found in the literature (@scRNAseq, @fibroblast) were used to separate the different cell types and their subtypes within them. A few markers didn't appear at all in our data (WISP2 - Secretory-reticular fibroblast, SEPP1 - Macrophage, TYP1 - Melanocyte) so the corresponding cell types were selected using their remaining markers present. Since those markers found in the literature are known to correlate with specific cell types, they were added to the list of high variable genes used to produce a lower dimensional representation of the data, even when their expression didn't vary enough to be selected as highly variable.
 
 ```{r gene_table, echo=FALSE}
 
@@ -275,12 +275,8 @@ km.patient2_AK <- results[[2]]
 
 ### Pseudo-bulk aggregation
 
-One of the interesting biological questions is how the cell subtype composition changes between healthy skin and diseased skin. For this, simply extracted the cell subtypes for each sample and compare the proportion of cells for each subtype. We used the pseudobulk workflow suggested in the lecture, which 'bulks' gene expression levels for each cluster. 
+```{r pseudo_bulk_aggregation, fig.keep=c(3, 6, 9, 11, 10, 12)}
 
-A Fisher's exact test helps us verify that for this particular patient and collection method, the proportion of certain subtypes really differs among conditions.
-
-
-```{r pseudo_bulk_aggregation, fig.keep=c(3, 6, 9, 11, 10, 12, 13, 14)}
 # Patient 1 HS
 results <- pseudobulk(sce.patient1_HS, km.patient1_HS)
 
@@ -312,7 +308,21 @@ sce.patient2_AK <- results[[1]]
 pb.patient2_AK <- results[[2]]
 mat.patient2_AK <- results[[3]]
 cl2.patient2_AK <- results[[4]]
+```
 
+### Proportion of cell populations
+
+One of the interesting biological questions is how the cell subtype composition changes between healthy skin and diseased skin. For this, simply extracted the cell subtypes for each sample and compare the proportion of cells for each subtype. We used the pseudobulk workflow suggested in the lecture, which 'bulks' gene expression levels for each cluster. 
+
+A Fisher's exact test helps us verify that for this particular patient and collection method, the proportion of certain subtypes really differs among conditions.
+
+#Cell Subtype composition varies a lot.
+For Patient 1, it seems that their diseased skin (SCC) contains a far higher proportion of lymphocytes, endothelial cells and myleloid cells. Conversely, the proportion of keratinocytes is far lower. For Patient 2 with (AK), the lymphocytes is far higher, similar for fibroblasts and endothelial cells but lower for all other cell type when compared to healthy skin.
+
+#Mitotic Cells and Keratinocytes are hard to differentiate in Patient 2 with AK.
+When it comes to mitotic cells, the marker genes used to quantify mitotic cells play a significant role. Using the suggested marker genes from @scRNAseq, we find mitotic cells in both healthy samples, but not in the diseased samples (AK + SCC). We experimented with different marker genes for the mitotic cells, adding some we found in @hsiao_characterizing_2020, but since our clustering algorithm didn't find clusters different enough from each other, we are left with either labeling some cells as all mitotic or all keratinocytes for patient 2.
+
+```{r dynamics}
 # create barplots of cell type proportions
 df.celltypes.patient1 <- rbind(df_barplot_celltypes(sce.patient1_HS), df_barplot_celltypes(sce.patient1_SCC))
 df.celltypes.patient1$Type <- c(rep("HS", 8), rep("SCC", 8))
@@ -331,7 +341,6 @@ p_val_endothelial <- fisher_test_subtypes(sce.patient1_HS, sce.patient1_SCC, 'fi
 p_val_myeloid <- fisher_test_subtypes(sce.patient1_HS, sce.patient1_SCC, 'myeloid')$p.value
 
 p_val_lympho2 <- fisher_test_subtypes(sce.patient2_HS, sce.patient2_AK, 'lymphocyte')$p.value
-
 
 ```
 
@@ -359,7 +368,7 @@ sce.patient2_HS.ref <- plot_reference_clusters(sce.patient2_HS)
 sce.patient2_AK.ref <- plot_reference_clusters(sce.patient2_AK)
 ```
 
-```{r reference-clustering-blueprint}
+```{r reference-clustering-human_cell_atlas}
 ref <- celldex::HumanPrimaryCellAtlasData()
 sce.patient1_HS.ref2 <- plot_reference_clusters(sce.patient1_HS)
 sce.patient1_SCC.ref2 <- plot_reference_clusters(sce.patient1_SCC)
@@ -402,6 +411,7 @@ dynamic_barplot(df.celltypes.patient2, "Patient 2", T, "Proportion of lympthocyt
 
 #### Keratinocytes subcomposition
 
+<!-- Not sure if relevant here, more for intro. also if we keep it, we should have the same for fibroblasts too -->
 Keratinocytes constitute 90% of epidermal skin cells. The epidermis is the outermost layer of the skin. They form a barrier against environmental damage by heat, UV radiation, water loss, various parasites such as viruses, fungi and pathogenic bacteria.
 
 ```{r keratinocyte, results='hide', fig.keep=c(5, 10, 15, 20)}
