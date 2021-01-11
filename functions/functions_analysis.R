@@ -350,8 +350,8 @@ dynamic_barplot <- function(df, name, labels, title, colors){
                        angle_col = "45"
   )
   if (isTRUE(labels)){
-    p <- p + theme(text = element_text(size=7),
-                   axis.text.x = element_text(angle=90, hjust=1))
+    p <- p + theme(text = element_text(size=6),
+                   axis.text.x = element_text(angle=45, hjust=1))
   }
   print(p)
 }
