@@ -66,6 +66,9 @@ suppressPackageStartupMessages({
   library(easyGgplot2) # for pretty barplots
 
   library(knitr) # for markers table output
+  
+  library(SingleR) # for reference genes
+  library(celldex)
 })
 ```
 
@@ -195,7 +198,7 @@ genes <- list(
   # SCHWANN CELL
   schwann  = c("CDH19","NGFR"),
   # MITOTIC CELL
-  mitotic  = c("UBE2C","PCNA")
+  mitotic  = c("UBE2C","PCNA", "CDK1")
 )
   
 # Known markers: all the gene markers listed above
@@ -215,19 +218,19 @@ In order to label each cell by its type in a meaningfull way, we used the low-di
 
 ```{r clustering, fig.keep='first'}
 
-results <- sc_cluster(sce.patient1_HS)
+results <- sc_cluster(sce.patient1_HS, 10)
 sce.patient1_HS <- results[[1]]
 g.patient1_HS <- results[[2]]
 
-results <- sc_cluster(sce.patient1_SCC)
+results <- sc_cluster(sce.patient1_SCC, 10)
 sce.patient1_SCC <- results[[1]]
 g.patient1_SCC <- results[[2]]
 
-results <- sc_cluster(sce.patient2_HS)
+results <- sc_cluster(sce.patient2_HS, 10)
 sce.patient2_HS <- results[[1]]
 g.patient2_HS <- results[[2]]
 
-results <- sc_cluster(sce.patient2_AK)
+results <- sc_cluster(sce.patient2_AK, 10)
 sce.patient2_AK <- results[[1]]
 g.patient2_AK <- results[[2]]
 
@@ -243,7 +246,7 @@ cell_types <- c("Keratinocyte", "", "", "", "", "", "", "","","", "Fibroblast", 
 
 cell_subtypes <- c("", "basal", "suprabasal", "differentiated", "ORS", "channel", "sebaceous gland", "sweat gland","cycling", "differentiating", "", "secretory reticular", "proinflammatory", "secretory papillary", "mesenchymal", "", "pericyte", "vSMC", "", "lymphatic", "", "dendritic", "langerhans", "macrophage", "", "", "", "")
 
-markers <- c(paste("DSC3","DSP","LGALS7"), paste("KRT5","KRT14","COL17A1"), paste("KRT1","KRT10"), paste("LOR", "SPINK5"), paste("KRT6B"), paste("GJB2","GJB6","ATP1B1"), paste("MGST1","FASN"), paste("DCD","AQP5"), paste("MKI67"), paste("KRT1"), paste("DCN", "LUM","MMP2"), paste("SLPI","CTHRC1","MFAP5","TSPAN8"), paste("CCL19","APOE","CXCL2","CXCL3","EFEMP1"), paste("APCDD1","ID1","WIF1","COL18A1","PTGDS"), paste("ASPN","POSTN","GPC3","TNN","SFRP1"), paste("ACTA2","TAGLN"), paste("RGS5"), paste("MYL9","TPM2","RERGL"), paste("PECAM1","SELE","CLDN5","VWF"), paste("PROX1","LYVE1"), paste("HLA-DRA","FCER1G","TYROBP","AIF1"), paste("CD1C"), paste("CD207"), paste("CD68","RNASE1","ITGAX"), paste("CD3D","CD3E","CD52","IL7R"), paste("DCT","MLANA","PMEL"), paste("CDH19","NGFR"), paste("UBE2C","PCNA"))
+markers <- c(paste("DSC3","DSP","LGALS7"), paste("KRT5","KRT14","COL17A1"), paste("KRT1","KRT10"), paste("LOR", "SPINK5"), paste("KRT6B"), paste("GJB2","GJB6","ATP1B1"), paste("MGST1","FASN"), paste("DCD","AQP5"), paste("MKI67"), paste("KRT1"), paste("DCN", "LUM","MMP2"), paste("SLPI","CTHRC1","MFAP5","TSPAN8"), paste("CCL19","APOE","CXCL2","CXCL3","EFEMP1"), paste("APCDD1","ID1","WIF1","COL18A1","PTGDS"), paste("ASPN","POSTN","GPC3","TNN","SFRP1"), paste("ACTA2","TAGLN"), paste("RGS5"), paste("MYL9","TPM2","RERGL"), paste("PECAM1","SELE","CLDN5","VWF"), paste("PROX1","LYVE1"), paste("HLA-DRA","FCER1G","TYROBP","AIF1"), paste("CD1C"), paste("CD207"), paste("CD68","RNASE1","ITGAX"), paste("CD3D","CD3E","CD52","IL7R"), paste("DCT","MLANA","PMEL"), paste("CDH19","NGFR"), paste("UBE2C","PCNA", "CDK1"))
 
 cell.df <- data.frame(Types=cell_types, Subtypes=cell_subtypes, Markers=markers)
 
@@ -342,6 +345,15 @@ fisher_test_subtypes(sce.patient1_HS, sce.patient1_SCC, 'fibroblast')
 
 ```
 
+## Alternative Cell Type Assignment
+```{r reference-clustering}
+ref <- celldex::BlueprintEncodeData()
+sce.patient1_HS.ref <- plot_reference_clusters(sce.patient1_HS)
+sce.patient1_SCC.ref <- plot_reference_clusters(sce.patient1_SCC)
+sce.patient2_HS.ref <- plot_reference_clusters(sce.patient2_HS)
+sce.patient2_AK.ref <- plot_reference_clusters(sce.patient2_AK)
+
+```
 
 ### Sub-population clustering
 
@@ -465,6 +477,12 @@ Secondly, we think the method used would benefit from a manual selection for clu
 An other point to discuss is the change in cell type proportion. We saw that changes were important for lymphocytes and keratinocytes between healthy and cancerous tissues, but it is important to keep in mind that we only have the data of two patients and therefore not a very statistically reliable result. Also as mentioned before, e.g. clusters that have no strong expression for any of the known markers we looked at, could have an effect on the number of cells counted towards a certain cell type. This could potentially give us a false impression on how different a cell type is in the healthy and cancer sample. As mentioned before this would be something to look into some more, but the assumption is that it won't have that much of an effect.
 
 ADD DISCUSSION ABOUT IMPLICATION IN THERAPIES
+
+### Impact for therpeutic interventions
+
+One of the major difficulties in the successful treatment of cancer is the lack of understanding of its evolution. How does it emerge, metastasize and relapse? Tumor heterogeneity arises from various genetic and epigenetic changes as well as external cues and selective forces. Getting a better grasp on this variability could help us understand disease state and ideally predict treatment outcomes for patients. 
+
+At what stage of cancer is a certain patient in and course is it taking? The data presented here might be an additional tool that may aid physicians in skin cancer diagnosis.  Further, a certain patient whose lymphocytes are proliferating a lot faster may need different treatment than a patient whose keratinocytes are a driving force in tumor growth. At this point, our analysis shows that both precancer and cancer conditions have strong effect on cell type composition. We recommend further research to help establish more granular diagnosis of AK and SCC, based on single cell RNA-seq/CITE-seq data.
 
 ## Conclusion
 
