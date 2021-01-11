@@ -319,6 +319,8 @@ df_barplot_celltypes <- function(sceo, return_prop=TRUE){
 }
 
 
+
+
 fisher_test_subtypes <- function(sce1, sce2, subtype) {
   cell_counts_sce1 <- df_barplot_celltypes(sce1, FALSE)
   cell_counts_sce2 <- df_barplot_celltypes(sce2, FALSE)
@@ -360,7 +362,7 @@ plot_reference_clusters <- function(sceo) {
   rownames(sceo) <- rowData(sceo)$Symbol
   pred <- SingleR(test=sceo, ref=ref, labels=ref$label.main)
   sceo$cluster_ref <- as.factor(pred$labels)
-  p <- plotUMAP(sceo, colour_by="cluster_ref", text_by="cluster_ref", text_size=3)
+  p <- plotUMAP(sceo, colour_by="cluster_ref", text_size=3)
   print(p)
   return(sceo)
 }

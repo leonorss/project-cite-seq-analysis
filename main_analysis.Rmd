@@ -209,19 +209,19 @@ In order to label each cell by its type in a meaningfull way, we used the low-di
 
 ```{r clustering, fig.keep='first'}
 
-results <- sc_cluster(sce.patient1_HS, 10)
+results <- sc_cluster(sce.patient1_HS, 15)
 sce.patient1_HS <- results[[1]]
 g.patient1_HS <- results[[2]]
 
-results <- sc_cluster(sce.patient1_SCC, 10)
+results <- sc_cluster(sce.patient1_SCC, 15)
 sce.patient1_SCC <- results[[1]]
 g.patient1_SCC <- results[[2]]
 
-results <- sc_cluster(sce.patient2_HS, 10)
+results <- sc_cluster(sce.patient2_HS, 15)
 sce.patient2_HS <- results[[1]]
 g.patient2_HS <- results[[2]]
 
-results <- sc_cluster(sce.patient2_AK, 10)
+results <- sc_cluster(sce.patient2_AK, 15)
 sce.patient2_AK <- results[[1]]
 g.patient2_AK <- results[[2]]
 
@@ -279,11 +279,6 @@ One of the interesting biological questions is how the cell subtype composition 
 
 A Fisher's exact test helps us verify that for this particular patient and collection method, the proportion of certain subtypes really differs among conditions.
 
-#Cell Subtype composition varies a lot.
-For Patient 1, it seems that their diseased skin (SCC) contains a far higher proportion of lymphocytes, endothelial cells and myleloid cells. Conversely, the proportion of keratinocytes is far lower. For Patient 2 with (AK), the lymphocytes is far higher, similar for fibroblasts and endothelial cells but lower for all other cell type when compared to healthy skin.
-
-#Mitotic Cells and Keratinocytes are hard to differentiate in Patient 2 with AK.
-When it comes to mitotic cells, the marker genes used to quantify mitotic cells play a significant role. Using the suggested marker genes from @scRNAseq, we find mitotic cells in both healthy samples, but not in the diseased samples (AK + SCC). We experimented with different marker genes for the mitotic cells, adding some we found in @hsiao_characterizing_2020, but since our clustering algorithm didn't find clusters different enough from each other, we are left with either labeling some cells as all mitotic or all keratinocytes for patient 2.
 
 ```{r pseudo_bulk_aggregation, fig.keep=c(3, 6, 9, 11, 10, 12, 13, 14)}
 # Patient 1 HS
@@ -329,23 +324,80 @@ dynamic_barplot(df.celltypes.patient1, "Patient 1", T, "Proportion of cell types
 dynamic_barplot(df.celltypes.patient2, "Patient 2", T, "Proportion of cell types in", c(HS ='#999999', AK = '#E69F00'))
 
 # p-value calculation
-fisher_test_subtypes(sce.patient1_HS, sce.patient1_SCC, 'keratinocyte')
-fisher_test_subtypes(sce.patient1_HS, sce.patient1_SCC, 'lymphocyte')
-fisher_test_subtypes(sce.patient1_HS, sce.patient1_SCC, 'fibroblast')
+p_val_kera <- fisher_test_subtypes(sce.patient1_HS, sce.patient1_SCC, 'keratinocyte')$p.value
+p_val_lympho <- fisher_test_subtypes(sce.patient1_HS, sce.patient1_SCC, 'lymphocyte')$p.value
+p_val_fibro <- fisher_test_subtypes(sce.patient1_HS, sce.patient1_SCC, 'fibroblast')$p.value
+p_val_endothelial <- fisher_test_subtypes(sce.patient1_HS, sce.patient1_SCC, 'fibroblast')$p.value
+p_val_myeloid <- fisher_test_subtypes(sce.patient1_HS, sce.patient1_SCC, 'myeloid')$p.value
+
+p_val_lympho2 <- fisher_test_subtypes(sce.patient2_HS, sce.patient2_AK, 'lymphocyte')$p.value
 
 
 ```
 
+#Cell Subtype composition varies a lot.
+For Patient 1, it seems that their diseased skin (SCC) contains a far higher proportion of lymphocytes (p=`r p_val_lympho`), endothelial cells (p=`r p_val_endothelial`) and myeloid cells (p=`r p_val_myeloid`) . Conversely, the proportion of keratinocytes is far lower (p=`r p_val_endothelial`). For Patient 2 with (AK), the lymphocytes is far higher (p=`r p_val_lympho2`), similar for fibroblasts and endothelial cells but lower for all other cell type when compared to healthy skin.
+
+#Mitotic Cells and Keratinocytes are hard to differentiate in Patient 2 with AK.
+When it comes to mitotic cells, the marker genes used to quantify mitotic cells play a significant role. Using the suggested marker genes from @scRNAseq, we find mitotic cells in both healthy samples, but not in the diseased samples (AK + SCC). We experimented with different marker genes for the mitotic cells, adding some we found in @hsiao_characterizing_2020, but since our clustering algorithm didn't find clusters different enough from each other, we are left with either labeling some cells as all mitotic or all keratinocytes for patient 2.
+
+
+
 ## Alternative Cell Type Assignment
-```{r reference-clustering}
+
+When we realized we had some issues with not all subclusters being represented, we realized the above pseudobulk approach may be limited when it comes to assigning cells their most appropriate type. For one, the 'bulking' converts a heterogenous cell population into a single cluster and individual differences in RNA expression data is lost. Additionally, the approach relying on a few single marker genes again captures only a limited part of the gene expression profile and simply summing up expression values across different genes doesn't take into account that some marker genes may be more important, or that a cell type with three marker genes will have a higher a sum than one with two marker genes given similar expression values for those genes.
+
+Hence, we looked for alternative approaches. At Mark's suggestion, we implemented SingleR @SingleR, which assigns each cell to a cell type individually. It does this by leveraging previously published data about expression profiles of pure cells and their corresponding cell type . In this case we are using the celldex package and tried out both the BluePrintEncode Data set as well as the HumanPrimaryCellAtlasData. This original data was generated by @Martens2013Oct and @Mabbott2013De respectively and then further processed as in @Aran2019Feb. 
+
+We include this data also to show that the way one decides to assign cell type membership has an important influence on results and what conclusions are then drawn from them. 
+
+```{r reference-clustering-blueprint}
 ref <- celldex::BlueprintEncodeData()
 sce.patient1_HS.ref <- plot_reference_clusters(sce.patient1_HS)
 sce.patient1_SCC.ref <- plot_reference_clusters(sce.patient1_SCC)
 sce.patient2_HS.ref <- plot_reference_clusters(sce.patient2_HS)
 sce.patient2_AK.ref <- plot_reference_clusters(sce.patient2_AK)
-
 ```
 
+```{r reference-clustering-blueprint}
+ref <- celldex::HumanPrimaryCellAtlasData()
+sce.patient1_HS.ref2 <- plot_reference_clusters(sce.patient1_HS)
+sce.patient1_SCC.ref2 <- plot_reference_clusters(sce.patient1_SCC)
+sce.patient2_HS.ref2 <- plot_reference_clusters(sce.patient2_HS)
+sce.patient2_AK.ref2 <- plot_reference_clusters(sce.patient2_AK)
+```
+Further, we can see what a huge impact the annotation method has. While the difference in lymphocytes between healthy skin and AK was extremely pronounced using the pseudobulk method, the reference annotation shows the difference being much less pronounced. Overall, there do seem to be a bit fewer immune cells in the AK condition. We would love to investigate this more, but because of a lack of time we just show these very contradicting results for now.
+
+```{r dynamic-plots-reference}
+
+lymphocytes = c("B-cells", "CD8+ T-cells","CD4+ T-cells", "NK cells")
+
+immune_cells = c("B-cells", "CD8+ T-cells","CD4+ T-cells", "DC", "Eosinophils", "Macrophages", "NK cells", "Neutrophils")
+
+lymphocyte_cells_patient2_HS <- ncol(sce.patient2_HS.ref[, sce.patient2_HS.ref$cluster_ref %in% lymphocytes])
+
+lymphocyte_cells_patient2_AK <- ncol(sce.patient2_AK.ref[, sce.patient2_AK.ref$cluster_ref %in% lymphocytes])
+
+immune_cells_patient2_HS <- ncol(sce.patient2_HS.ref[, sce.patient2_HS.ref$cluster_ref %in% immune_cells])
+
+immune_cells_patient2_AK <- ncol(sce.patient2_AK.ref[, sce.patient2_AK.ref$cluster_ref %in% immune_cells])
+
+total_HS <- ncol(sce.patient2_HS.ref)
+total_AK <- ncol(sce.patient2_AK.ref)
+
+proportion_HS <- c(lymphocyte_cells_patient2_HS, immune_cells_patient2_HS)/total_HS
+proportion_AK <- c(lymphocyte_cells_patient2_AK, immune_cells_patient2_AK)/total_AK
+
+dfHS <- data.frame(names=c("Lymphocytes", "Immune cells"), proportion=c(proportion_HS))
+dfAK <- data.frame(names=c("Lymphocytes", "Immune cells"), proportion=c(proportion_AK))
+
+df.celltypes.patient2 <- rbind(dfHS, dfAK)
+df.celltypes.patient2$Type <- c(rep("HS", 2), rep("AK", 2))
+
+
+dynamic_barplot(df.celltypes.patient2, "Patient 2", T, "Proportion of lympthocytes / immune cells in", c(HS ='#999999', AK = '#E69F00'))
+
+```
 ### Sub-population clustering
 
 #### Keratinocytes subcomposition
@@ -455,7 +507,7 @@ cat("Genes missing in dataset: ", known_markers[idx_notfound])
 
 
 ## Summary
-We started by cleaning up the raw data and applying clustering algorithm to identify the cell type populations mentioned above. The clustering of main cell type appeared to be quite satisfying whereas the cell subtypes were more challenging to separate. We observed differences in the cell (sub)type proportion in the different samples, in particular for lymphocytes and keratinocytes. The general trend showed an increase of lymphocytes and a decrease of keratinocytes in cancer tissue. We also took a look at the dynamics of the keratinocytes  ADD DESCRIPTION ON RESULTS. 
+We started by cleaning up the raw data and applying clustering algorithm to identify the cell type populations mentioned above. The clustering of main cell type appeared to be quite satisfying whereas the cell subtypes were more challenging to separate. We observed differences in the cell (sub)type proportion in the different samples, in particular for lymphocytes and keratinocytes. The general trend showed an increase of lymphocytes and a decrease of keratinocytes in cancer tissue. We also took a look at the dynamics of the keratinocytes and noticed that  
 
 <!-- not sure what the p-values tell us, mabe we also need to have a clearer output for that -->
 
@@ -466,8 +518,6 @@ The first point which should be discussed is related to the few relatively arbit
 Secondly, we think the method used would benefit from a manual selection for cluster aggregation into a specific cell type. Comparing the heatmaps produced before and after aggregation showed that we sometimes faced clusters with no clear marker expression. The cells belonging to those cluster could therefore artificially blow up the proportion of a cell type after aggregation even though they are not expressing the required markers. We think that a manual pick would allow a more refine selection and the introduction of an additional label bringing all the undefined cells together.
 
 An other point to discuss is the change in cell type proportion. We saw that changes were important for lymphocytes and keratinocytes between healthy and cancerous tissues, but it is important to keep in mind that we only have the data of two patients and therefore not a very statistically reliable result. Also as mentioned before, e.g. clusters that have no strong expression for any of the known markers we looked at, could have an effect on the number of cells counted towards a certain cell type. This could potentially give us a false impression on how different a cell type is in the healthy and cancer sample. As mentioned before this would be something to look into some more, but the assumption is that it won't have that much of an effect.
-
-ADD DISCUSSION ABOUT IMPLICATION IN THERAPIES
 
 ### Impact for therpeutic interventions
 
